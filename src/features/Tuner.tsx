@@ -1,14 +1,14 @@
 import { useTuner } from '../audio/useTuner'
-import { STRING_LABELS } from '../audio/pitchDetect'
+import { useTuning } from '../theory/useTuning'
+import { stringLabels, stringOrdinal } from '../theory/tuning'
 import './Tuner.css'
 
-/** "6th".."1st" ordinal for a string index (0 = low E = 6th string). */
-const ORDINALS = ['6th', '5th', '4th', '3rd', '2nd', '1st']
-
 export default function Tuner() {
+  const { tuning } = useTuning()
+  const labels = stringLabels(tuning)
   const {
     status,
-    reading,
+    reading: rawReading,
     devices,
     deviceId,
     setDeviceId,
@@ -17,7 +17,17 @@ export default function Tuner() {
     errorMsg,
     start,
     stop,
-  } = useTuner()
+  } = useTuner(tuning)
+
+  // Ignore a reading whose string index is out of range for the current tuning.
+  // This can happen for a single render right after switching tunings (before
+  // the hook's reset effect clears it) and would otherwise index out of bounds.
+  const reading =
+    rawReading &&
+    rawReading.targetString >= 0 &&
+    rawReading.targetString < labels.length
+      ? rawReading
+      : null
 
   const listening = status === 'listening'
   const cents = reading?.cents ?? 0
@@ -50,7 +60,7 @@ export default function Tuner() {
             >
               Auto
             </button>
-            {STRING_LABELS.map((label, i) => (
+            {labels.map((label, i) => (
               <button
                 key={i}
                 type="button"
@@ -60,7 +70,7 @@ export default function Tuner() {
                 }
                 aria-pressed={lockedString === i}
                 onClick={() => setLockedString(lockedString === i ? null : i)}
-                title={`${ORDINALS[i]} string`}
+                title={`${stringOrdinal(tuning, i)} string`}
               >
                 {label}
               </button>
@@ -71,11 +81,11 @@ export default function Tuner() {
         {/* Big readout */}
         <div className={'tuner-readout' + (inTune ? ' is-intune' : '')}>
           <div className="tuner-note mono">
-            {reading ? STRING_LABELS[reading.targetString].toUpperCase() : '–'}
+            {reading ? labels[reading.targetString].toUpperCase() : '–'}
           </div>
           <div className="muted tuner-sub">
             {reading
-              ? `${ORDINALS[reading.targetString]} string${
+              ? `${stringOrdinal(tuning, reading.targetString)} string${
                   reading.note ? ` · heard ${reading.note}${reading.octave}` : ''
                 }`
               : listening
@@ -158,8 +168,8 @@ export default function Tuner() {
         ) : null}
 
         <p className="muted tuner-hint">
-          Standard tuning (E A D G B E). Play one string and let it ring; pick a
-          string above to lock onto it, or leave it on Auto.
+          {tuning.name}. Play one string and let it ring; tap a string above to
+          lock onto it, or leave it on Auto. (Change the tuning in the header.)
         </p>
       </div>
     </section>

@@ -153,6 +153,11 @@ input[type='range'] { width: 100%; accent-color: var(--accent); }
   color: var(--text-dim);
   vertical-align: middle;
 }
+.app-tuning {
+  padding: 6px 8px;
+  font-size: 13px;
+  margin-left: 12px;
+}
 
 .tabbar { display: flex; gap: 6px; margin-left: auto; }
 .tab {

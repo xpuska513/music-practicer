@@ -5,11 +5,6 @@
  */
 import { noteName } from '../theory/notes'
 
-/** Open-string MIDI notes for standard tuning, low E .. high E (index 0..5). */
-export const TUNING_MIDI: readonly number[] = [40, 45, 50, 55, 59, 64]
-/** Display labels per string (low E .. high E). */
-export const STRING_LABELS: readonly string[] = ['E', 'A', 'D', 'G', 'B', 'e']
-
 /** Continuous (fractional) MIDI value for a frequency. */
 export function midiFloatOf(frequency: number): number {
   return 12 * Math.log2(frequency / 440) + 69
@@ -32,13 +27,13 @@ export function analysePitch(frequency: number): PitchInfo {
   }
 }
 
-/** Index (0..5) of the standard-tuning string closest to a frequency. */
-export function nearestString(frequency: number): number {
+/** Index of the open string (in `tuningMidis`, low→high) closest to a frequency. */
+export function nearestString(frequency: number, tuningMidis: number[]): number {
   const m = midiFloatOf(frequency)
   let best = 0
   let bestDist = Infinity
-  for (let i = 0; i < TUNING_MIDI.length; i++) {
-    const dist = Math.abs(m - TUNING_MIDI[i])
+  for (let i = 0; i < tuningMidis.length; i++) {
+    const dist = Math.abs(m - tuningMidis[i])
     if (dist < bestDist) {
       bestDist = dist
       best = i
@@ -48,6 +43,10 @@ export function nearestString(frequency: number): number {
 }
 
 /** Cents the frequency is off from a specific string's target pitch (±). */
-export function centsFromString(frequency: number, stringIndex: number): number {
-  return Math.round((midiFloatOf(frequency) - TUNING_MIDI[stringIndex]) * 100)
+export function centsFromString(
+  frequency: number,
+  tuningMidis: number[],
+  stringIndex: number,
+): number {
+  return Math.round((midiFloatOf(frequency) - tuningMidis[stringIndex]) * 100)
 }

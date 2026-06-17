@@ -11,7 +11,7 @@ everything runs in your browser. Builds to plain static files you can host
 anywhere (or open from disk). The only network use is fetching the guitar
 sound samples on first play (see Audio below); everything else works offline.
 
-Five practice tools:
+Six practice tools:
 
 - **🎯 Chord Trainer** — a Rocksmith-style minigame. Chords come up driven by the
   metronome (random, or a chord **progression** like ii–V–I / 12-bar blues), each
@@ -27,12 +27,20 @@ Five practice tools:
 - **🤘 Technique** — a metronome speed-trainer for techniques (tremolo, alternate
   picking, legato, palm muting, sweeps, tapping…): tips, a tiny exercise, an
   audible subdivision guide, and an auto tempo-ramp (+BPM every N bars to a goal).
+- **🎚 Tuner** — microphone tuner using the McLeod Pitch Method
+  ([`pitchy`](https://github.com/ianprime0509/pitchy)). Auto-detects the nearest
+  string or lock to one, with a cents meter. Supports **6-, 7- and 8-string**
+  (the low B / low F#). Needs mic permission and a secure page (localhost / https).
 - **🛠 Editor** — build your own **custom chords** by clicking on the chart
   (anywhere on the neck, optional finger numbers) and **custom scales** by
   clicking notes against a root, with live preview + playback. Saved to
   `localStorage`, and they appear in the Trainer / Explorer next to the built-ins.
 
-Most settings (tempo, mode, last tab, …) persist across sessions in `localStorage`.
+A global **tuning** selector in the header (6 / 7 / 8-string standard) currently
+drives the Tuner; other fretboard views can adopt it next.
+
+Most settings (tempo, mode, last tab, tuning, …) persist across sessions in
+`localStorage`.
 
 ### Audio
 
@@ -106,9 +114,13 @@ src/
     useCustomScales.ts     React hook syncing custom scales across views
     customChords.ts        load/save user chords to localStorage
     useCustomChords.ts     React hook syncing custom chords across views
+    tuning.ts              tuning model + 6/7/8-string presets
+    useTuning.tsx          global tuning context (persisted)
   audio/
     useMetronome.ts        Web Audio lookahead scheduler (with subdivisions)
     synth.ts               guitar playback: smplr soundfont + Karplus-Strong fallback
+    pitchDetect.ts         note/string helpers for the tuner
+    useTuner.ts            mic + pitch-detection hook (pitchy)
   lib/
     usePersistentState.ts  validated localStorage-backed useState
   components/
@@ -118,10 +130,11 @@ src/
     ChordTrainer.tsx       the chord minigame
     ScaleExplorer.tsx      the scale visualizer
     TechniqueTrainer.tsx   technique speed-trainer
+    Tuner.tsx              microphone tuner (6/7/8-string)
     ChordEditor.tsx        build + save custom chords (anywhere on the neck)
     ScaleEditor.tsx        build + save custom scales
     Editor.tsx             wrapper hosting both editors
-  App.tsx                  tab shell (Chords / Scales / Metronome / Technique / Editor)
+  App.tsx                  tab shell (Chords / Scales / Metronome / Technique / Tuner / Editor)
   index.css                design tokens + shared UI classes
 ```
 

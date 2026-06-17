@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { PitchDetector } from 'pitchy'
 import { analysePitch, nearestString, centsFromString } from './pitchDetect'
+import type { Tuning } from '../theory/tuning'
 
 export type TunerStatus =
   | 'idle'
@@ -15,7 +16,7 @@ export interface TunerReading {
   /** Detected chromatic note (e.g. "E", "F#"). */
   note: string
   octave: number
-  /** Standard-tuning string being tuned (0 = low E .. 5 = high E). */
+  /** Active-tuning string being tuned (index 0 = lowest string .. length-1 = highest). */
   targetString: number
   /** Cents off from the target string (negative = flat, positive = sharp). */
   cents: number
@@ -33,7 +34,7 @@ export interface TunerControls {
   devices: AudioInputDevice[]
   deviceId: string | null
   setDeviceId: (id: string | null) => void
-  /** null = auto-detect nearest string; 0..5 = lock to that string. */
+  /** null = auto-detect nearest string; 0..(strings.length-1) = lock to that string. */
   lockedString: number | null
   setLockedString: (s: number | null) => void
   errorMsg: string | null
@@ -51,8 +52,9 @@ const CLARITY_THRESHOLD = 0.8
 /** Auto-detect must see a new nearest string this many frames in a row before
  *  switching to it — filters the occasional single-frame octave blip. */
 const TARGET_HYSTERESIS = 2
-/** Plausible guitar fundamental range (Hz); rejects noise and octave errors. */
-const MIN_FREQ = 60
+/** Plausible guitar fundamental range (Hz); rejects noise and octave errors.
+ *  Low enough for an 8-string low F# (~46 Hz). */
+const MIN_FREQ = 40
 const MAX_FREQ = 1400
 
 interface WebAudioWindow extends Window {
@@ -60,7 +62,7 @@ interface WebAudioWindow extends Window {
   webkitAudioContext?: typeof AudioContext
 }
 
-export function useTuner(): TunerControls {
+export function useTuner(tuning: Tuning): TunerControls {
   const [status, setStatus] = useState<TunerStatus>('idle')
   const [reading, setReading] = useState<TunerReading | null>(null)
   const [devices, setDevices] = useState<AudioInputDevice[]>([])
@@ -75,6 +77,7 @@ export function useTuner(): TunerControls {
   const bufRef = useRef<Float32Array<ArrayBuffer> | null>(null)
   const detectorRef = useRef<PitchDetector<Float32Array> | null>(null)
   const lockedRef = useRef<number | null>(null)
+  const tuningRef = useRef(tuning)
   const deviceIdRef = useRef<string | null>(null)
   const centsSmoothRef = useRef(0)
   // Auto-detect target-string hysteresis state.
@@ -87,6 +90,7 @@ export function useTuner(): TunerControls {
   const startGenRef = useRef(0)
 
   lockedRef.current = lockedString
+  tuningRef.current = tuning
   deviceIdRef.current = deviceId
 
   /** Tear down audio nodes/stream/loop without touching status. */
@@ -151,7 +155,7 @@ export function useTuner(): TunerControls {
         targetHoldRef.current = -1
         candCountRef.current = 0
       } else {
-        const detected = nearestString(freq)
+        const detected = nearestString(freq, tuningRef.current.strings)
         if (targetHoldRef.current < 0 || detected === targetHoldRef.current) {
           targetHoldRef.current = detected
           candCountRef.current = 0
@@ -169,7 +173,7 @@ export function useTuner(): TunerControls {
         target = targetHoldRef.current
       }
 
-      const cents = centsFromString(freq, target)
+      const cents = centsFromString(freq, tuningRef.current.strings, target)
       // Snap (don't sweep) the needle when the target string changes; otherwise
       // smooth it. inTune uses the SAME smoothed value the needle shows.
       if (target !== lastTargetRef.current) {
@@ -309,6 +313,18 @@ export function useTuner(): TunerControls {
     md.addEventListener('devicechange', handler)
     return () => md.removeEventListener('devicechange', handler)
   }, [refreshDevices])
+
+  // Tuning changed → string indices/targets differ; reset detection state and
+  // clear any lock (its index no longer maps to the same string).
+  useEffect(() => {
+    targetHoldRef.current = -1
+    candRef.current = -1
+    candCountRef.current = 0
+    lastTargetRef.current = -1
+    centsSmoothRef.current = 0
+    setLockedString(null)
+    setReading(null)
+  }, [tuning.id])
 
   // Stop everything on unmount.
   useEffect(() => cleanupAudio, [cleanupAudio])

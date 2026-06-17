@@ -7,6 +7,8 @@ import TechniqueTrainer from './features/TechniqueTrainer'
 import Tuner from './features/Tuner'
 import { usePersistentState } from './lib/usePersistentState'
 import { preloadGuitar, isGuitarReady } from './audio/synth'
+import { useTuning } from './theory/useTuning'
+import { TUNINGS } from './theory/tuning'
 
 type GuitarStatus = 'loading' | 'ready' | 'fallback'
 
@@ -25,6 +27,7 @@ const isTab = (v: unknown): v is Tab => TABS.some((t) => t.id === v)
 
 export default function App() {
   const [tab, setTab] = usePersistentState<Tab>('app:tab', 'chords', isTab)
+  const { tuningId, setTuningId } = useTuning()
 
   // Warm up the guitar samples on mount so the first played chord already uses
   // the real guitar rather than the synth fallback.
@@ -56,6 +59,19 @@ export default function App() {
             </span>
           ) : null}
         </div>
+        <select
+          className="app-tuning"
+          value={tuningId}
+          onChange={(e) => setTuningId(e.target.value)}
+          aria-label="Guitar tuning (applies across the app)"
+          title="Guitar / tuning — applies across the app"
+        >
+          {TUNINGS.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.strings.length}-string
+            </option>
+          ))}
+        </select>
         <nav className="tabbar" role="tablist" aria-label="Practice modes">
           {TABS.map((t) => (
             <button
