@@ -1,4 +1,5 @@
-import { noteName, noteAt } from './notes'
+import { noteName } from './notes'
+import { STANDARD_TUNING } from '../types'
 import type { ScaleDef, FretMark, PitchClass } from '../types'
 
 /**
@@ -88,12 +89,14 @@ export function getScaleMarks(
   scale: ScaleDef,
   rootPc: PitchClass,
   fretCount: number,
+  /** Open-string pitch classes, low→high. Defaults to 6-string standard. */
+  openStringPcs: readonly number[] = STANDARD_TUNING,
 ): FretMark[] {
   const marks: FretMark[] = []
 
-  for (let string = 0; string <= 5; string++) {
+  for (let string = 0; string < openStringPcs.length; string++) {
     for (let fret = 0; fret <= fretCount; fret++) {
-      const pc = noteAt(string, fret)
+      const pc = (((openStringPcs[string] + fret) % 12) + 12) % 12
       const degree = (((pc - rootPc) % 12) + 12) % 12
 
       if (scale.intervals.includes(degree)) {

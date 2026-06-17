@@ -6,25 +6,24 @@ import './Fretboard.css'
  * Shared SVG fretboard.
  *
  * Coordinate system: everything is computed in an internal "neck space" where
- * one axis runs ALONG the neck (string-direction, 6 strings) and the other runs
- * ACROSS the frets (fretCount cells). We lay the neck out horizontally first,
- * then — for vertical orientation — swap (x, y) at the very end so all of the
- * geometry math only has to be written once.
+ * one axis runs ALONG the neck (string-direction, `stringCount` strings) and the
+ * other runs ACROSS the frets (fretCount cells). We lay the neck out
+ * horizontally first, then — for vertical orientation — swap (x, y) at the very
+ * end so all of the geometry math only has to be written once.
  *
  * In horizontal neck space:
  *   x = position along the frets   (nut on the left, higher frets to the right)
  *   y = position across the strings
- * For HORIZONTAL output we keep this as-is but flip the string axis so that
- * high E (index 5) is on top and low E (index 0) on the bottom (tab view).
- * For VERTICAL output we transpose: frets run top->bottom, and low E (index 0)
- * is on the left, high E (index 5) on the right (chord-diagram view).
+ * For HORIZONTAL output we keep this as-is but flip the string axis so the
+ * highest-index string (e.g. high E) is on top and string 0 (the lowest) is on
+ * the bottom (tab view). For VERTICAL output we transpose: frets run top->bottom,
+ * string 0 is on the left, the highest-index string on the right (chord diagram).
  */
 
 /** Geometry constants (in SVG user units; the viewBox scales them to fit). */
 const PAD = 28 // outer margin, leaves room for fret numbers / muted "x"
 const CELL = 42 // length of one fret cell along the neck
 const STRING_GAP = 26 // distance between adjacent strings
-const STRING_COUNT = 6
 const DOT_R = 11 // radius of a fretted-note dot
 const OPEN_R = 8 // radius of an open-string ring
 const INLAY_R = 5 // radius of an inlay position marker
@@ -37,6 +36,7 @@ const Fretboard: React.FC<FretboardProps> = ({
   marks,
   startFret = 0,
   fretCount = 15,
+  stringCount = 6,
   orientation = 'horizontal',
   mutedStrings = [],
   showLabels = true,
@@ -48,7 +48,7 @@ const Fretboard: React.FC<FretboardProps> = ({
   // ── Neck-space extents ────────────────────────────────────────────────────
   // Along-axis spans the fret cells; across-axis spans the strings.
   const neckLength = fretCount * CELL // along the frets
-  const neckWidth = (STRING_COUNT - 1) * STRING_GAP // across the strings
+  const neckWidth = (stringCount - 1) * STRING_GAP // across the strings
 
   // ── Mappers from "neck space" to SVG coordinates ──────────────────────────
   // `alongAt(fret)` -> distance from the nut for an absolute fret number.
@@ -60,9 +60,9 @@ const Fretboard: React.FC<FretboardProps> = ({
   // `acrossAt(stringIndex)` -> distance across the neck for a string index,
   // using the orientation-correct ordering.
   const acrossOffset = (stringIndex: number) => {
-    // Horizontal: high E (5) on top -> smallest offset; low E (0) bottom.
-    // Vertical:   low E (0) on left -> smallest offset; high E (5) right.
-    const ordered = isVertical ? stringIndex : STRING_COUNT - 1 - stringIndex
+    // Horizontal: highest-index string on top -> smallest offset; string 0 bottom.
+    // Vertical:   string 0 on left -> smallest offset; highest-index string right.
+    const ordered = isVertical ? stringIndex : stringCount - 1 - stringIndex
     return ordered * STRING_GAP
   }
 
@@ -107,12 +107,12 @@ const Fretboard: React.FC<FretboardProps> = ({
 
   // ── String lines ──────────────────────────────────────────────────────────
   const stringLines: React.ReactElement[] = []
-  for (let s = 0; s < STRING_COUNT; s += 1) {
+  for (let s = 0; s < stringCount; s += 1) {
     const across = acrossOffset(s)
     const a = toXY(0, across)
     const b = toXY(neckLength, across)
     // Thicker strings (low E) draw slightly heavier for legibility.
-    const weight = 1 + (STRING_COUNT - 1 - s) * 0.22
+    const weight = 1 + (stringCount - 1 - s) * 0.22
     stringLines.push(
       <line
         key={`string-${s}`}
@@ -181,7 +181,7 @@ const Fretboard: React.FC<FretboardProps> = ({
   // ── Muted-string "x" markers at the nut end ───────────────────────────────
   const mutedMarks: React.ReactElement[] = []
   for (const s of mutedStrings) {
-    if (s < 0 || s >= STRING_COUNT) continue
+    if (s < 0 || s >= stringCount) continue
     const across = acrossOffset(s)
     // Sit just outside the nut edge (the "open" side of the neck).
     const p = toXY(-PAD * 0.5, across)
@@ -195,7 +195,7 @@ const Fretboard: React.FC<FretboardProps> = ({
   // ── Note marks (fretted dots + open rings) ────────────────────────────────
   const dots: React.ReactElement[] = []
   marks.forEach((mark: FretMark, i: number) => {
-    if (mark.string < 0 || mark.string >= STRING_COUNT) return
+    if (mark.string < 0 || mark.string >= stringCount) return
 
     const absFret = mark.fret
     // Skip marks outside the visible window.
@@ -238,7 +238,7 @@ const Fretboard: React.FC<FretboardProps> = ({
   // ── Interactive hit targets (one transparent rect per clickable cell) ─────
   const hitTargets: React.ReactElement[] = []
   if (onCellClick) {
-    for (let s = 0; s < STRING_COUNT; s += 1) {
+    for (let s = 0; s < stringCount; s += 1) {
       const acrossCenter = acrossOffset(s)
       const across0 = acrossCenter - STRING_GAP / 2
       const across1 = acrossCenter + STRING_GAP / 2

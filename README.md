@@ -14,14 +14,15 @@ sound samples on first play (see Audio below); everything else works offline.
 Six practice tools:
 
 - **🎯 Chord Trainer** — a Rocksmith-style minigame. Chords come up driven by the
-  metronome (random, or a chord **progression** like ii–V–I / 12-bar blues), each
+  metronome (random, or a chord **progression** — ii–V–I, 12-bar blues, 王道
+  Royal Road, …), each
   shown as a fretboard diagram with the exact frets/fingers (root highlighted)
   plus the "up next" chord. Strum styles (down/up/arpeggio/per-beat), an optional
   count-in bar, and a loop-this-chord toggle. Includes a dedicated **🎌 J-Rock**
   set (~55 maj7 / m7 / add9 / sus / 6 / 9 / slash / dim voicings).
 - **🎼 Scale Explorer** — every popular scale/mode, transposable to any root
-  (E thru E), drawn across the neck. Toggle note names ↔ scale degrees, play the
-  scale up and down.
+  (E thru E), drawn across the neck — **6-, 7- or 8-string** (follows the header
+  tuning). Toggle note names ↔ scale degrees, play the scale up and down.
 - **🥁 Metronome** — accurate Web Audio metronome (lookahead scheduler), tap
   tempo, time signature, and **subdivisions** (8ths / triplets / 16ths) for a
   picking guide. Visual beat indicator.
@@ -37,8 +38,8 @@ Six practice tools:
   clicking notes against a root, with live preview + playback. Saved to
   `localStorage`, and they appear in the Trainer / Explorer next to the built-ins.
 
-A global **tuning** selector in the header (6 / 7 / 8-string standard) currently
-drives the Tuner; other fretboard views can adopt it next.
+A global **tuning** selector in the header (6 / 7 / 8-string standard) drives the
+Tuner and the Scale Explorer; the chord views can adopt it next.
 
 Most settings (tempo, mode, last tab, tuning, …) persist across sessions in
 `localStorage`.

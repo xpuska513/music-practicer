@@ -4,11 +4,11 @@ import {
   ROOT_OPTIONS,
   pitchClassOf,
   noteName,
-  noteAt,
   degreeLabel,
 } from '../theory/notes'
 import Fretboard from '../components/Fretboard'
 import { useCustomScales } from '../theory/useCustomScales'
+import { useTuning } from '../theory/useTuning'
 import { scaleMidis, playSequence, resumeAudio, stopAll } from '../audio/synth'
 import { usePersistentState } from '../lib/usePersistentState'
 import type { FretMark, NoteName, ScaleDef } from '../types'
@@ -51,6 +51,12 @@ const CATEGORY_ORDER: ScaleDef['category'][] = [
  */
 function ScaleExplorer() {
   const { customScales } = useCustomScales()
+  const { tuning } = useTuning()
+  // Open-string pitch classes for the active tuning (low→high).
+  const tuningPcs = useMemo(
+    () => tuning.strings.map((m) => ((m % 12) + 12) % 12),
+    [tuning],
+  )
   const [root, setRoot] = usePersistentState<NoteName>('se:root', 'E', isRoot)
   const [scaleId, setScaleId] = usePersistentState<string>('se:scale', SCALES[0].id)
   const [labelMode, setLabelMode] = usePersistentState<LabelMode>(
@@ -88,15 +94,15 @@ function ScaleExplorer() {
 
   // Fretboard marks: note names by default, scale degrees when toggled.
   const marks = useMemo<FretMark[]>(() => {
-    const base = getScaleMarks(scale, rootPc, FRET_COUNT)
+    const base = getScaleMarks(scale, rootPc, FRET_COUNT, tuningPcs)
     if (labelMode === 'notes') return base
     return base.map((mark) => {
-      // Derive the interval from the actual fretted pitch rather than parsing
-      // the note-name label back into a pitch class.
-      const interval = (((noteAt(mark.string, mark.fret) - rootPc) % 12) + 12) % 12
+      // Interval from the fretted pitch on the active tuning's string.
+      const pc = (tuningPcs[mark.string] + mark.fret) % 12
+      const interval = (((pc - rootPc) % 12) + 12) % 12
       return { ...mark, label: degreeLabel(interval) }
     })
-  }, [scale, rootPc, labelMode])
+  }, [scale, rootPc, labelMode, tuningPcs])
 
   // Scales grouped under their category headings for the <select>.
   const grouped = useMemo(() => {
@@ -209,6 +215,7 @@ function ScaleExplorer() {
             orientation="horizontal"
             startFret={0}
             fretCount={FRET_COUNT}
+            stringCount={tuning.strings.length}
             marks={marks}
             showLabels
           />

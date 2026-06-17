@@ -14,6 +14,12 @@ export interface Progression {
 }
 
 export const PROGRESSIONS: Progression[] = [
+  // J-Rock / anime staples.
+  { id: 'royal-road-c', name: '王道 · Royal Road (C)', chordIds: ['Fmaj7', 'G7', 'Em7', 'Am'] },
+  { id: 'royal-road-g', name: '王道 · Royal Road (G)', chordIds: ['Cmaj7', 'D', 'Bm7', 'Em'] },
+  { id: 'komuro-am', name: '小室 · vi–IV–V–I (Am→C)', chordIds: ['Am', 'F', 'G', 'C'] },
+  { id: 'marusa-c', name: '丸サ · Just-the-Two-of-Us (C)', chordIds: ['Fmaj7', 'E7', 'Am7', 'C7'] },
+
   { id: 'ii-V-I-C', name: 'ii–V–I (C major)', chordIds: ['Dm7', 'G7', 'Cmaj7'] },
   { id: 'I-V-vi-IV-C', name: 'I–V–vi–IV (C)', chordIds: ['C', 'G', 'Am', 'F'] },
   { id: 'I-V-vi-IV-G', name: 'I–V–vi–IV (G)', chordIds: ['G', 'D', 'Em', 'C'] },

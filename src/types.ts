@@ -44,7 +44,7 @@ export const NOTE_NAMES: readonly NoteName[] = [
  * Used by both the chord trainer and the scale explorer.
  */
 export interface FretMark {
-  /** String index 0..5 (0 = low E / 6th, 5 = high E / 1st). */
+  /** String index 0..stringCount-1 (0 = lowest string; on 6-string: 5 = high E). */
   string: number
   /** Fret number. 0 = open, >=1 fretted. */
   fret: number
@@ -121,11 +121,13 @@ export interface FretboardProps {
   startFret?: number
   /** Number of fret columns to render. Default 15. */
   fretCount?: number
+  /** Number of strings to render (low→high). Default 6. */
+  stringCount?: number
   /** Layout direction. "horizontal" = neck runs left-to-right (good for scales,
    *  desktop). "vertical" = neck runs top-to-bottom (good for chord diagrams,
    *  mobile). Default "horizontal". */
   orientation?: 'horizontal' | 'vertical'
-  /** String indices (0..5) to mark as muted with an "X". */
+  /** String indices (0..stringCount-1) to mark as muted with an "X". */
   mutedStrings?: number[]
   /** Show note name / label text inside the dots. Default true. */
   showLabels?: boolean
@@ -134,7 +136,7 @@ export interface FretboardProps {
   /**
    * When provided, the board becomes interactive: a transparent hit-target is
    * drawn over every string/fret cell (and the open-string position when the
-   * nut is visible), and clicking one calls this with (stringIndex 0..5, fret).
+   * nut is visible), and clicking one calls this with (stringIndex 0..stringCount-1, fret).
    * fret 0 means the open-string / nut cell.
    */
   onCellClick?: (stringIndex: number, fret: number) => void
