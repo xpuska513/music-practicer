@@ -1,0 +1,116 @@
+.metronome {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  max-width: 480px;
+}
+
+/* ---- Tempo readout + nudge buttons ---- */
+.metronome-tempo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gap);
+  flex-wrap: wrap;
+}
+
+.metronome-bpm {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.metronome-bpm-value {
+  font-size: clamp(56px, 18vw, 88px);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.metronome-bpm-unit {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-dim);
+  letter-spacing: 0.08em;
+}
+
+.metronome-nudge {
+  display: flex;
+  gap: 10px;
+}
+
+/* Bigger touch targets than the default .btn-icon for mobile. */
+.metronome-nudge .btn-icon {
+  width: 56px;
+  height: 56px;
+  font-size: 28px;
+}
+
+.metronome-slider {
+  height: 36px;
+}
+
+.metronome-tap {
+  margin-left: auto;
+}
+
+/* ---- Beat indicator ---- */
+.metronome-beats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  justify-content: center;
+  padding: 8px 0;
+  min-height: 32px;
+}
+
+.metronome-dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  transition: background 0.08s ease, box-shadow 0.08s ease, transform 0.08s ease;
+}
+
+.metronome-dot.is-active {
+  background: var(--accent-3);
+  border-color: var(--accent-3);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent-3) 30%, transparent);
+  animation: metronome-pulse 0.18s ease-out;
+}
+
+.metronome-dot.is-downbeat.is-active {
+  background: var(--accent-2);
+  border-color: var(--accent-2);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent-2) 30%, transparent);
+}
+
+@keyframes metronome-pulse {
+  0% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(1.35);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .metronome-dot.is-active {
+    animation: none;
+  }
+}
+
+/* ---- Transport ---- */
+.metronome-transport {
+  width: 100%;
+  padding: 18px;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}

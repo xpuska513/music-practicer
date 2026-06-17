@@ -1,0 +1,60 @@
+/* ScaleExplorer — reuses tokens/primitives from index.css. */
+
+.scale-explorer {
+  width: 100%;
+}
+
+.scale-explorer__controls {
+  align-items: flex-end;
+}
+
+/* Let the root chip-row take a full row of its own when space is tight. */
+.scale-explorer__root {
+  flex: 1 1 100%;
+}
+
+.scale-explorer__spelling {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.scale-explorer__spelling-title {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* The note chips in the spelling are read-only; restore a default cursor. */
+.scale-explorer__spelling .chip {
+  cursor: default;
+}
+
+.scale-explorer__board {
+  padding: 12px;
+  background: var(--bg-elev);
+}
+
+/* The SVG scales to width:100%; on narrow screens allow horizontal scrolling
+   so the full 15-fret neck stays legible instead of shrinking to nothing. */
+.scale-explorer__board-scroll {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.scale-explorer__board-scroll .fretboard {
+  display: block;
+  width: 100%;
+}
+
+@media (max-width: 680px) {
+  /* Keep the neck at a usable size; the wrapper scrolls horizontally. */
+  .scale-explorer__board-scroll .fretboard {
+    width: auto;
+    min-width: 720px;
+    height: auto;
+  }
+}

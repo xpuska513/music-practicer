@@ -1,0 +1,121 @@
+/* ScaleEditor — reuses tokens/primitives from index.css. */
+
+.scale-editor {
+  width: 100%;
+}
+
+/* Instructional line under the controls. */
+.scale-editor__hint {
+  margin: 4px 0 0;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+/* ---- Interactive neck ---- */
+.scale-editor__board {
+  padding: 12px;
+  background: var(--bg-elev);
+}
+
+/* SVG scales to width:100%; on narrow screens scroll horizontally so the full
+   15-fret neck stays legible (and tappable) instead of shrinking to nothing. */
+.scale-editor__board-scroll {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.scale-editor__board-scroll .fretboard {
+  display: block;
+  width: 100%;
+}
+
+/* ---- Spelling block ---- */
+.scale-editor__spelling {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.scale-editor__spelling-title {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Spelling chips are display-only; restore a default cursor. */
+.scale-editor__spell-chip {
+  cursor: default;
+}
+
+.scale-editor__actions {
+  align-items: center;
+  margin-top: 4px;
+}
+
+.scale-editor__feedback {
+  margin: 4px 0 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.scale-editor__feedback--error {
+  color: var(--danger);
+}
+
+.scale-editor__feedback--success {
+  color: var(--accent);
+}
+
+/* ---- Saved scales list ---- */
+.scale-editor__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.scale-editor__list-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+}
+
+.scale-editor__list-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.scale-editor__list-name {
+  font-weight: 700;
+}
+
+.scale-editor__list-meta {
+  font-size: 12px;
+}
+
+.scale-editor__list-actions {
+  flex-wrap: nowrap;
+}
+
+@media (max-width: 680px) {
+  /* Keep the neck at a usable size; the wrapper scrolls horizontally. */
+  .scale-editor__board-scroll .fretboard {
+    width: auto;
+    min-width: 720px;
+    height: auto;
+  }
+
+  .scale-editor__list-actions {
+    flex-wrap: wrap;
+  }
+}

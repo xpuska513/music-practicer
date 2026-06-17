@@ -1,0 +1,196 @@
+/* ============================================================================
+   ChordTrainer — Rocksmith-style chord practice minigame.
+   Reuses tokens from index.css (var(--accent), var(--bg-elev), …).
+   Mobile-first: single column, stage panels stack until there's room.
+   ========================================================================== */
+
+.chord-trainer {
+  gap: var(--gap);
+}
+
+/* ---- Setup panel ---- */
+.ct-setup {
+  gap: 16px;
+}
+
+.ct-bpm-readout {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.ct-start {
+  align-self: flex-start;
+  min-width: 160px;
+}
+
+.ct-empty {
+  margin: 0;
+  font-size: 14px;
+}
+
+/* ---- Practice stage ---- */
+.ct-stage {
+  align-items: stretch;
+}
+
+.ct-current,
+.ct-next {
+  flex: 1 1 240px;
+  min-width: 0;
+  align-items: center;
+  gap: 12px;
+}
+
+.ct-current {
+  flex-grow: 2;
+}
+
+.ct-eyebrow {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.ct-current-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  text-align: center;
+}
+
+.ct-current-name {
+  margin: 0;
+  font-size: clamp(28px, 8vw, 44px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+}
+
+.ct-current-meta {
+  font-size: 13px;
+}
+
+.ct-next-name {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  text-align: center;
+}
+
+/* ---- Chord diagrams ---- */
+.ct-diagram {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.ct-diagram .fretboard {
+  width: 100%;
+  height: auto;
+}
+
+.ct-diagram--big {
+  max-width: 240px;
+}
+
+.ct-diagram--small {
+  max-width: 150px;
+}
+
+.ct-diagram-placeholder {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  min-height: 180px;
+  border: 1px dashed var(--border);
+  border-radius: var(--r-md);
+  font-size: 14px;
+}
+
+/* ---- Per-measure progress / countdown ---- */
+.ct-progress {
+  width: 100%;
+  height: 8px;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.ct-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+  transition: width 0.12s linear;
+}
+
+/* Count-in bar uses the accent-2 colour so it reads as "get ready". */
+.ct-progress.is-countin .ct-progress-fill {
+  background: var(--accent-2);
+}
+
+/* ---- Beat-dot indicator ---- */
+.ct-beats {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.ct-beat-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  transition: transform 0.08s ease, background 0.08s ease;
+}
+
+.ct-beat-dot.is-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  transform: scale(1.25);
+}
+
+.ct-beat-dot.is-accent.is-active {
+  background: var(--accent-2);
+  border-color: var(--accent-2);
+}
+
+/* ---- Session stats ---- */
+.ct-stats {
+  justify-content: space-around;
+  text-align: center;
+}
+
+.ct-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1 1 0;
+  min-width: 80px;
+}
+
+.ct-stat-value {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.ct-stat-label {
+  font-size: 12px;
+}
+
+/* ---- Mobile ---- */
+@media (max-width: 680px) {
+  .ct-start {
+    align-self: stretch;
+  }
+  .ct-stage {
+    flex-direction: column;
+  }
+  .ct-next .ct-diagram--small {
+    max-width: 130px;
+  }
+}

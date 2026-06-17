@@ -1,0 +1,158 @@
+/* ChordEditor — click-on-the-chart chord-shape builder. Reuses index.css tokens. */
+
+.chord-editor {
+  width: 100%;
+}
+
+/* ── Shape header (label + Clear) ─────────────────────────────────────── */
+.chord-editor__shape-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.chord-editor__shape-head > label {
+  font-size: 13px;
+  color: var(--text-dim);
+  font-weight: 600;
+}
+.chord-editor__clear {
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+.chord-editor__hint {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+/* ── Fret-position stepper ────────────────────────────────────────────── */
+.chord-editor__position {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 6px;
+}
+.chord-editor__position-label {
+  min-width: 132px;
+  text-align: center;
+  font-weight: 700;
+}
+
+/* ── Interactive board ────────────────────────────────────────────────── */
+.chord-editor__board {
+  /* Comfortable tap size; centered, never wider than the panel. */
+  width: 100%;
+  max-width: 320px;
+  margin: 4px auto 0;
+}
+
+/* ── Per-string readout (always visible; tap to mute) ─────────────────── */
+.chord-editor__strings {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.chord-editor__string-chip {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 46px;
+  padding: 6px 8px;
+}
+.chord-editor__string-name {
+  font-size: 11px;
+}
+.chord-editor__string-val {
+  font-size: 16px;
+  font-weight: 800;
+}
+
+/* ── Finger cyclers (one per fretted string) ──────────────────────────── */
+.chord-editor__fingers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chord-editor__finger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 6px 14px;
+}
+
+.chord-editor__finger-string {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.chord-editor__finger-val {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--accent-2);
+}
+
+.chord-editor__finger[aria-pressed='true'] .chord-editor__finger-string,
+.chord-editor__finger[aria-pressed='true'] .chord-editor__finger-val {
+  color: inherit;
+}
+
+/* ── Inline messages ──────────────────────────────────────────────────── */
+.chord-editor__msg {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+.chord-editor__msg--error {
+  color: var(--danger);
+}
+.chord-editor__msg--ok {
+  color: var(--accent);
+}
+
+/* ── Saved list ───────────────────────────────────────────────────────── */
+.chord-editor__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.chord-editor__list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 10px 12px;
+}
+
+.chord-editor__list-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.chord-editor__list-name {
+  font-weight: 700;
+}
+
+.chord-editor__list-actions {
+  flex-wrap: nowrap;
+}

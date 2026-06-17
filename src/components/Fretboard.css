@@ -1,0 +1,87 @@
+/* ============================================================================
+   Fretboard — styling for the shared SVG fretboard component.
+   Reuses the design tokens from index.css (var(--fret-line), var(--string), …).
+   ========================================================================== */
+
+.fretboard {
+  display: block;
+  width: 100%;
+  height: auto;
+  /* keep the rendered neck legible even when scaled down on a phone */
+  max-width: 100%;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* The wooden neck background. */
+.fretboard__wood {
+  fill: var(--fret-wood);
+}
+
+/* Fret wires + nut. */
+.fretboard__fret {
+  stroke: var(--fret-line);
+  stroke-linecap: round;
+}
+.fretboard__nut {
+  stroke: var(--text);
+  stroke-linecap: round;
+}
+
+/* String lines. */
+.fretboard__string {
+  stroke: var(--string);
+  stroke-linecap: round;
+}
+
+/* Inlay position markers baked into the neck. */
+.fretboard__inlay {
+  fill: var(--fret-line);
+}
+
+/* Fretted-note dots and open-string rings. */
+.fretboard__dot-ring {
+  fill: none;
+  stroke-width: 2.5;
+}
+
+/* Text inside dots + axis labels — never selectable. */
+.fretboard__label,
+.fretboard__fretnum,
+.fretboard__muted,
+.fretboard__startfret {
+  user-select: none;
+  -webkit-user-select: none;
+  font-family: var(--font);
+  dominant-baseline: central;
+  text-anchor: middle;
+}
+.fretboard__label {
+  fill: var(--dot-text);
+  font-weight: 700;
+}
+.fretboard__fretnum,
+.fretboard__startfret {
+  fill: var(--text-dim);
+  font-weight: 600;
+}
+.fretboard__muted {
+  fill: var(--text-dim);
+  font-weight: 700;
+}
+
+/* Interactive hit targets (only present when onCellClick is set). */
+.fretboard--interactive .fretboard__hit {
+  fill: transparent;
+  cursor: pointer;
+  transition: fill 0.08s ease;
+}
+.fretboard--interactive .fretboard__hit:hover {
+  fill: color-mix(in srgb, var(--accent) 22%, transparent);
+}
+@media (hover: none) {
+  /* On touch devices, give a faint persistent affordance instead of hover. */
+  .fretboard--interactive .fretboard__hit {
+    fill: color-mix(in srgb, var(--accent) 5%, transparent);
+  }
+}

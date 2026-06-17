@@ -1,0 +1,17 @@
+.editor {
+  gap: 16px;
+}
+
+/* The chord/scale segmented switch sits at the top of the Editor tab. */
+.editor-switch {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  padding: 4px 0 8px;
+  background: var(--bg);
+}
+
+.editor-switch .chip {
+  font-size: 15px;
+  padding: 8px 16px;
+}
