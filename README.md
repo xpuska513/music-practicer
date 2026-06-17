@@ -17,7 +17,8 @@ Six practice tools:
   metronome (random, or a chord **progression** like ii–V–I / 12-bar blues), each
   shown as a fretboard diagram with the exact frets/fingers (root highlighted)
   plus the "up next" chord. Strum styles (down/up/arpeggio/per-beat), an optional
-  count-in bar, and a loop-this-chord toggle.
+  count-in bar, and a loop-this-chord toggle. Includes a dedicated **🎌 J-Rock**
+  set (~55 maj7 / m7 / add9 / sus / 6 / 9 / slash / dim voicings).
 - **🎼 Scale Explorer** — every popular scale/mode, transposable to any root
   (E thru E), drawn across the neck. Toggle note names ↔ scale degrees, play the
   scale up and down.
@@ -108,6 +109,7 @@ src/
     notes.ts               pitch-class math, note names, tuning, root options
     scales.ts              scale definitions + fretboard mark generation
     chords.ts              chord library (shapes/fingerings) + render helper
+    chordsJrock.ts         J-Rock chord set (maj7/m7/add9/sus/slash/…) — own filter
     progressions.ts        preset chord progressions (ii–V–I, 12-bar blues, …)
     techniques.ts          technique definitions (tips, exercises, tempos)
     customScales.ts        load/save user scales to localStorage

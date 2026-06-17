@@ -18,6 +18,7 @@ const DIFFICULTY_FILTERS: { id: DifficultyFilter; label: string }[] = [
   { id: 'beginner', label: 'Beginner' },
   { id: 'intermediate', label: 'Intermediate' },
   { id: 'advanced', label: 'Advanced' },
+  { id: 'jrock', label: '🎌 J-Rock' },
   { id: 'custom', label: 'Custom' },
 ]
 

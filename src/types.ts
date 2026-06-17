@@ -84,8 +84,8 @@ export interface ChordDef {
   root: NoteName
   /** Human-readable quality, e.g. "major", "minor", "7", "maj7", "m7", "sus4". */
   quality: string
-  /** Difficulty bucket for filtering practice sessions. */
-  difficulty: 'beginner' | 'intermediate' | 'advanced' | 'custom'
+  /** Bucket for filtering practice sessions (difficulty, or a named set). */
+  difficulty: 'beginner' | 'intermediate' | 'advanced' | 'jrock' | 'custom'
   /** Playable shape on the neck. */
   shape: ChordShape
 }

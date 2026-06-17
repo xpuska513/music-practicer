@@ -190,7 +190,9 @@
   .ct-stage {
     flex-direction: column;
   }
+  /* Stacked full-width on mobile — let the "up next" preview be comfortably
+     readable instead of a tiny 130px diagram lost in a wide panel. */
   .ct-next .ct-diagram--small {
-    max-width: 130px;
+    max-width: 220px;
   }
 }

@@ -1,4 +1,5 @@
 import type { ChordDef, ChordShape, ChordRender, FretMark } from '../types'
+import { JROCK_CHORDS } from './chordsJrock'
 
 /**
  * Catalogue of practiceable chord voicings.
@@ -306,6 +307,8 @@ export const CHORDS: ChordDef[] = [
       baseFret: 1,
     },
   },
+  // J-Rock / anime-flavoured extended voicings (own "🎌 J-Rock" filter).
+  ...JROCK_CHORDS,
 ]
 
 /**
