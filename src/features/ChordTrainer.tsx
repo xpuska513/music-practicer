@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { CHORDS, chordShapeToRender } from '../theory/chords'
+import { CHORDS, chordShapeToRender, fitShape } from '../theory/chords'
 import { PROGRESSIONS } from '../theory/progressions'
 import Fretboard from '../components/Fretboard'
 import { useMetronome } from '../audio/useMetronome'
 import { useCustomChords } from '../theory/useCustomChords'
+import { useTuning } from '../theory/useTuning'
 import { usePersistentState } from '../lib/usePersistentState'
-import { chordMidis, playChord, resumeAudio } from '../audio/synth'
-import { noteAt, pitchClassOf } from '../theory/notes'
+import { chordMidis, playChord, resumeAudio, standardMidisForCount } from '../audio/synth'
+import { pitchClassOf } from '../theory/notes'
 import type { ChordDef } from '../types'
 import './ChordTrainer.css'
 
@@ -66,23 +67,44 @@ function pickNextChord(pool: ChordDef[], exceptId: string | null): ChordDef | nu
   return source[Math.floor(Math.random() * source.length)]
 }
 
+/** MIDI notes for a chord, using its native string count's standard tuning. */
+function chordToMidis(chord: ChordDef): number[] {
+  return chordMidis(chord.shape.frets, standardMidisForCount(chord.shape.frets.length))
+}
+
 /** A compact chord diagram backed by the shared Fretboard component. */
-function ChordDiagram({ chord, showLabels }: { chord: ChordDef; showLabels: boolean }) {
-  const render = useMemo(() => chordShapeToRender(chord.shape), [chord.shape])
-  // chordShapeToRender doesn't know the chord's root, so highlight it here.
+function ChordDiagram({
+  chord,
+  showLabels,
+  stringCount,
+  tuningPcs,
+}: {
+  chord: ChordDef
+  showLabels: boolean
+  stringCount: number
+  tuningPcs: readonly number[]
+}) {
+  // Fit the shape to the active neck (6-string chords get muted low strings).
+  const render = useMemo(
+    () => chordShapeToRender(fitShape(chord.shape, stringCount)),
+    [chord.shape, stringCount],
+  )
+  // chordShapeToRender doesn't know the chord's root, so highlight it here,
+  // using the active tuning's open pitch classes.
   const marks = useMemo(() => {
     const rootPc = pitchClassOf(chord.root)
     return render.marks.map((m) => ({
       ...m,
-      isRoot: noteAt(m.string, m.fret) === rootPc,
+      isRoot: (tuningPcs[m.string] + m.fret) % 12 === rootPc,
     }))
-  }, [render.marks, chord.root])
+  }, [render.marks, chord.root, tuningPcs])
   return (
     <Fretboard
       marks={marks}
       mutedStrings={render.mutedStrings}
       startFret={render.startFret}
       fretCount={render.fretCount}
+      stringCount={stringCount}
       orientation="vertical"
       showLabels={showLabels}
       showFretNumbers
@@ -92,6 +114,12 @@ function ChordDiagram({ chord, showLabels }: { chord: ChordDef; showLabels: bool
 
 export default function ChordTrainer() {
   const { customChords } = useCustomChords()
+  const { tuning } = useTuning()
+  const stringCount = tuning.strings.length
+  const tuningPcs = useMemo(
+    () => tuning.strings.map((m) => ((m % 12) + 12) % 12),
+    [tuning],
+  )
 
   // ── Persisted setup ───────────────────────────────────────────────────────
   const [mode, setMode] = usePersistentState<Mode>('ct:mode', 'random', isMode)
@@ -128,10 +156,14 @@ export default function ChordTrainer() {
   // Completed measures within the current chord's window (drives the bar).
   const [measuresDone, setMeasuresDone] = useState(0)
 
-  // Built-in chords plus any the user created in the editor.
+  // Built-in chords plus any the user created — only those that fit the active
+  // neck (a native 7/8-string chord is hidden on a smaller-string tuning).
   const allChords = useMemo<ChordDef[]>(
-    () => [...CHORDS, ...customChords],
-    [customChords],
+    () =>
+      [...CHORDS, ...customChords].filter(
+        (c) => c.shape.frets.length <= stringCount,
+      ),
+    [customChords, stringCount],
   )
 
   // Random-mode pool (difficulty filtered).
@@ -201,7 +233,7 @@ export default function ChordTrainer() {
     if (!chord || !autoPlayRef.current) return
     resumeAudio()
     const spread = strumRef.current === 'arp' ? ARP_SPREAD : STRUM_SPREAD
-    playChord(chordMidis(chord.shape.frets), { direction, strum: spread })
+    playChord(chordToMidis(chord), { direction, strum: spread })
   }, [])
 
   /** Strum once, picking the direction from the current style. */
@@ -218,7 +250,7 @@ export default function ChordTrainer() {
     resumeAudio()
     const spread = strumRef.current === 'arp' ? ARP_SPREAD : STRUM_SPREAD
     const direction = strumRef.current === 'up' ? 'up' : 'down'
-    playChord(chordMidis(chord.shape.frets), { direction, strum: spread })
+    playChord(chordToMidis(chord), { direction, strum: spread })
   }, [])
 
   /** Advance to the next chord (or re-trigger the current one when looping). */
@@ -514,6 +546,20 @@ export default function ChordTrainer() {
           </div>
         </div>
 
+        {/* Heads-up when on an extended-range tuning. */}
+        {stringCount >= 7 ? (
+          <p className="ct-string-warning" role="note">
+            <span className="ct-string-warning__icon" aria-hidden="true">
+              🎸
+            </span>
+            <span>
+              Includes 7/8-string voicings that fit your{' '}
+              <strong>{stringCount}-string</strong> tuning. Build your own in the
+              🛠 Editor.
+            </span>
+          </p>
+        ) : null}
+
         <button
           type="button"
           className={`btn ${isPlaying ? '' : 'btn-primary'} ct-start`}
@@ -564,7 +610,12 @@ export default function ChordTrainer() {
 
           <div className="ct-diagram ct-diagram--big">
             {current ? (
-              <ChordDiagram chord={current} showLabels />
+              <ChordDiagram
+                chord={current}
+                showLabels
+                stringCount={stringCount}
+                tuningPcs={tuningPcs}
+              />
             ) : (
               <div className="ct-diagram-placeholder muted">No chord</div>
             )}
@@ -601,7 +652,12 @@ export default function ChordTrainer() {
           <h3 className="ct-next-name">{next ? next.name : '—'}</h3>
           <div className="ct-diagram ct-diagram--small">
             {next ? (
-              <ChordDiagram chord={next} showLabels={false} />
+              <ChordDiagram
+                chord={next}
+                showLabels={false}
+                stringCount={stringCount}
+                tuningPcs={tuningPcs}
+              />
             ) : (
               <div className="ct-diagram-placeholder muted">—</div>
             )}

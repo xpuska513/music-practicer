@@ -38,8 +38,11 @@ Six practice tools:
   clicking notes against a root, with live preview + playback. Saved to
   `localStorage`, and they appear in the Trainer / Explorer next to the built-ins.
 
-A global **tuning** selector in the header (6 / 7 / 8-string standard) drives the
-Tuner and the Scale Explorer; the chord views can adopt it next.
+A global **tuning** selector in the header (6 / 7 / 8-string standard) drives
+every fretboard view — Tuner, Scale Explorer, Chord Trainer, and both editors.
+6-string chords show on a 7/8 neck with the extra low strings muted, and there's
+a set of native 7/8 voicings (power chords on the low B / F#) that appear only on
+those tunings.
 
 Most settings (tempo, mode, last tab, tuning, …) persist across sessions in
 `localStorage`.
@@ -111,6 +114,7 @@ src/
     scales.ts              scale definitions + fretboard mark generation
     chords.ts              chord library (shapes/fingerings) + render helper
     chordsJrock.ts         J-Rock chord set (maj7/m7/add9/sus/slash/…) — own filter
+    chordsExtended.ts      native 7/8-string voicings (low B / F# power chords)
     progressions.ts        preset chord progressions (ii–V–I, 12-bar blues, …)
     techniques.ts          technique definitions (tips, exercises, tempos)
     customScales.ts        load/save user scales to localStorage

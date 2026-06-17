@@ -1,5 +1,6 @@
 import type { ChordDef, ChordShape, ChordRender, FretMark } from '../types'
 import { JROCK_CHORDS } from './chordsJrock'
+import { EXTENDED_CHORDS } from './chordsExtended'
 
 /**
  * Catalogue of practiceable chord voicings.
@@ -309,6 +310,8 @@ export const CHORDS: ChordDef[] = [
   },
   // J-Rock / anime-flavoured extended voicings (own "🎌 J-Rock" filter).
   ...JROCK_CHORDS,
+  // 7/8-string sample voicings (length-7/8 shapes; shown only on 7/8 tunings).
+  ...EXTENDED_CHORDS,
 ]
 
 /**
@@ -357,4 +360,31 @@ export function chordShapeToRender(shape: ChordShape): ChordRender {
   }
 
   return { marks, mutedStrings, startFret, fretCount }
+}
+
+/**
+ * Fit a chord shape to a target string count. Index 0 = lowest string, so a
+ * shape with FEWER strings (e.g. a 6-string chord on a 7/8 neck) is padded with
+ * muted low strings (prepended nulls), keeping its notes on the correct strings;
+ * a shape with MORE strings than the neck drops the extra lowest strings.
+ */
+export function fitShape(shape: ChordShape, stringCount: number): ChordShape {
+  const cur = shape.frets.length
+  if (cur === stringCount) return shape
+  if (cur < stringCount) {
+    const pad = stringCount - cur
+    const padFrets = new Array<number | null>(pad).fill(null)
+    const padFingers = new Array<number | null>(pad).fill(null)
+    return {
+      frets: [...padFrets, ...shape.frets],
+      fingers: shape.fingers ? [...padFingers, ...shape.fingers] : undefined,
+      baseFret: shape.baseFret,
+    }
+  }
+  const drop = cur - stringCount
+  return {
+    frets: shape.frets.slice(drop),
+    fingers: shape.fingers ? shape.fingers.slice(drop) : undefined,
+    baseFret: shape.baseFret,
+  }
 }

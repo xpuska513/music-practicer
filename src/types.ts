@@ -63,9 +63,10 @@ export interface FretMark {
  * Arrays are length 6, indexed by string (0 = low E .. 5 = high E).
  */
 export interface ChordShape {
-  /** Per-string fret. null = muted, 0 = open, >=1 = fretted. Length 6. */
+  /** Per-string fret. null = muted, 0 = open, >=1 = fretted. Length = number
+   *  of strings (6, 7 or 8); index 0 = lowest string. */
   frets: (number | null)[]
-  /** Per-string suggested finger 1..4 (or null). Length 6. Optional. */
+  /** Per-string suggested finger 1..4 (or null). Same length as frets. Optional. */
   fingers?: (number | null)[]
   /**
    * Lowest fret shown in the diagram window (for barre chords above the nut).

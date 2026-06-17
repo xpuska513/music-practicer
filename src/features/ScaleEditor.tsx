@@ -6,9 +6,9 @@ import {
   pitchClassOf,
   noteName,
   degreeLabel,
-  noteAt,
 } from '../theory/notes'
 import Fretboard from '../components/Fretboard'
+import { useTuning } from '../theory/useTuning'
 import { scaleMidis, playSequence, resumeAudio, stopAll } from '../audio/synth'
 import type { NoteName, ScaleDef, FretMark } from '../types'
 import './ScaleEditor.css'
@@ -26,8 +26,13 @@ interface Feedback {
 }
 
 /** Semitone interval (0..11) from the root for a given string/fret. */
-function intervalAt(stringIndex: number, fret: number, rootPc: number): number {
-  return (((noteAt(stringIndex, fret) - rootPc) % 12) + 12) % 12
+function intervalAt(
+  stringIndex: number,
+  fret: number,
+  rootPc: number,
+  openPcs: readonly number[],
+): number {
+  return (((openPcs[stringIndex] + fret - rootPc) % 12) + 12) % 12
 }
 
 /**
@@ -37,6 +42,11 @@ function intervalAt(stringIndex: number, fret: number, rootPc: number): number {
  */
 function ScaleEditor() {
   const { customScales, addScale, updateScale, removeScale } = useCustomScales()
+  const { tuning } = useTuning()
+  const tuningPcs = useMemo(
+    () => tuning.strings.map((m) => ((m % 12) + 12) % 12),
+    [tuning],
+  )
 
   const [name, setName] = useState('')
   const [root, setRoot] = useState<NoteName>('E')
@@ -68,13 +78,13 @@ function ScaleEditor() {
 
   // Every matching position on the neck, relabelled for the current mode.
   const marks = useMemo<FretMark[]>(() => {
-    const base = getScaleMarks(draft, rootPc, FRET_COUNT)
+    const base = getScaleMarks(draft, rootPc, FRET_COUNT, tuningPcs)
     if (labelMode === 'notes') return base
     return base.map((mark) => ({
       ...mark,
-      label: degreeLabel(intervalAt(mark.string, mark.fret, rootPc)),
+      label: degreeLabel(intervalAt(mark.string, mark.fret, rootPc, tuningPcs)),
     }))
-  }, [draft, rootPc, labelMode])
+  }, [draft, rootPc, labelMode, tuningPcs])
 
   // Note-name spelling from the root, one entry per selected interval.
   const spelling = useMemo(
@@ -84,7 +94,7 @@ function ScaleEditor() {
 
   const handleCellClick = useCallback(
     (stringIndex: number, fret: number) => {
-      const interval = intervalAt(stringIndex, fret, rootPc)
+      const interval = intervalAt(stringIndex, fret, rootPc, tuningPcs)
       // The root is always part of the scale; ignore clicks on it.
       if (interval === 0) return
       setFeedback(null)
@@ -96,7 +106,7 @@ function ScaleEditor() {
         return Array.from(set).sort((a, b) => a - b)
       })
     },
-    [rootPc],
+    [rootPc, tuningPcs],
   )
 
   const resetForm = useCallback(() => {
@@ -247,6 +257,7 @@ function ScaleEditor() {
             orientation="horizontal"
             startFret={0}
             fretCount={FRET_COUNT}
+            stringCount={tuning.strings.length}
             marks={marks}
             showLabels
             onCellClick={handleCellClick}

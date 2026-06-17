@@ -1,16 +1,16 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useCustomChords } from '../theory/useCustomChords'
-import { ROOT_OPTIONS, pitchClassOf, noteAt } from '../theory/notes'
+import { useTuning } from '../theory/useTuning'
+import { ROOT_OPTIONS, pitchClassOf } from '../theory/notes'
+import { fitShape } from '../theory/chords'
+import { stringLabels } from '../theory/tuning'
 import Fretboard from '../components/Fretboard'
-import { chordMidis, playChord, resumeAudio } from '../audio/synth'
+import { chordMidis, playChord, resumeAudio, standardMidisForCount } from '../audio/synth'
 import type { ChordShape, NoteName, FretMark } from '../types'
 import './ChordEditor.css'
 
-/** Display labels per string index (0 = low E .. 5 = high E). */
-const STRING_LABELS = ['low E', 'A', 'D', 'G', 'B', 'high E'] as const
-
-const EMPTY_FRETS: (number | null)[] = [null, null, null, null, null, null]
-const EMPTY_FINGERS: (number | null)[] = [null, null, null, null, null, null]
+/** A fresh all-muted shape array for an n-string guitar. */
+const emptyArr = (n: number): (number | null)[] => new Array<number | null>(n).fill(null)
 
 /** Number of fret cells shown in the editor window. */
 const EDITOR_FRET_COUNT = 5
@@ -26,17 +26,34 @@ const MAX_START_FRET = 17
  */
 export default function ChordEditor() {
   const { customChords, addChord, updateChord, removeChord } = useCustomChords()
+  const { tuning } = useTuning()
+  const stringCount = tuning.strings.length
+  const stringNames = stringLabels(tuning)
+  const tuningPcs = useMemo(
+    () => tuning.strings.map((m) => ((m % 12) + 12) % 12),
+    [tuning],
+  )
 
   const [name, setName] = useState('')
   const [root, setRoot] = useState<NoteName>('C')
   const [quality, setQuality] = useState('')
-  const [frets, setFrets] = useState<(number | null)[]>(EMPTY_FRETS)
-  const [fingers, setFingers] = useState<(number | null)[]>(EMPTY_FINGERS)
+  const [frets, setFrets] = useState<(number | null)[]>(() => emptyArr(stringCount))
+  const [fingers, setFingers] = useState<(number | null)[]>(() => emptyArr(stringCount))
   const [editingId, setEditingId] = useState<string | null>(null)
   // Lowest fret of the visible window — lets you build chords up the neck.
   const [startFret, setStartFret] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [confirmation, setConfirmation] = useState<string | null>(null)
+
+  // Re-size / reset the shape when the global tuning's string count changes.
+  useEffect(() => {
+    setFrets(emptyArr(stringCount))
+    setFingers(emptyArr(stringCount))
+    setStartFret(0)
+    setEditingId(null)
+    setError(null)
+    setConfirmation(null)
+  }, [stringCount])
 
   /**
    * Handle a click on a board cell.
@@ -102,8 +119,8 @@ export default function ChordEditor() {
   const clearShape = () => {
     setError(null)
     setConfirmation(null)
-    setFrets(EMPTY_FRETS)
-    setFingers(EMPTY_FINGERS)
+    setFrets(emptyArr(stringCount))
+    setFingers(emptyArr(stringCount))
     setStartFret(0)
   }
 
@@ -111,15 +128,15 @@ export default function ChordEditor() {
     setName('')
     setRoot('C')
     setQuality('')
-    setFrets(EMPTY_FRETS)
-    setFingers(EMPTY_FINGERS)
+    setFrets(emptyArr(stringCount))
+    setFingers(emptyArr(stringCount))
     setStartFret(0)
     setEditingId(null)
   }
 
   const handleHearCurrent = () => {
     resumeAudio()
-    playChord(chordMidis(frets))
+    playChord(chordMidis(frets, standardMidisForCount(frets.length)))
   }
 
   const handleSave = () => {
@@ -159,12 +176,12 @@ export default function ChordEditor() {
     setName(chord.name)
     setRoot(chord.root)
     setQuality(chord.quality)
-    setFrets([...chord.shape.frets])
-    setFingers(
-      chord.shape.fingers ? [...chord.shape.fingers] : [...EMPTY_FINGERS],
-    )
+    // Fit the saved shape onto the active neck (pad/drop strings as needed).
+    const fitted = fitShape(chord.shape, stringCount)
+    setFrets([...fitted.frets])
+    setFingers(fitted.fingers ? [...fitted.fingers] : emptyArr(stringCount))
     // Move the window so the loaded chord's notes are visible.
-    const fretted = chord.shape.frets.filter(
+    const fretted = fitted.frets.filter(
       (f): f is number => f !== null && f > 0,
     )
     const maxF = fretted.length ? Math.max(...fretted) : 0
@@ -182,16 +199,16 @@ export default function ChordEditor() {
 
   const handleHearChord = (chordFrets: (number | null)[]) => {
     resumeAudio()
-    playChord(chordMidis(chordFrets))
+    playChord(chordMidis(chordFrets, standardMidisForCount(chordFrets.length)))
   }
 
-  // ── Marks built directly from state (fixed 0..5 window) ───────────────────
+  // ── Marks built directly from state (active-tuning neck) ──────────────────
   const rootPc = pitchClassOf(root)
   const marks: FretMark[] = []
   const mutedStrings: number[] = []
-  for (let i = 0; i < 6; i += 1) {
+  for (let i = 0; i < stringCount; i += 1) {
     const fret = frets[i]
-    if (fret === null) {
+    if (fret == null) {
       mutedStrings.push(i)
       continue
     }
@@ -199,14 +216,14 @@ export default function ChordEditor() {
       string: i,
       fret,
       label: fingers[i] != null ? String(fingers[i]) : undefined,
-      isRoot: noteAt(i, fret) === rootPc,
+      isRoot: (tuningPcs[i] + fret) % 12 === rootPc,
     })
   }
-  const hasPlayed = frets.some((f) => f !== null)
+  const hasPlayed = frets.some((f) => f != null)
   // Strings currently fretted (>0) need a finger cycler.
-  const fingeredStrings = STRING_LABELS.map((_, i) => i).filter(
-    (i) => frets[i] !== null && (frets[i] as number) > 0,
-  )
+  const fingeredStrings = stringNames
+    .map((_, i) => i)
+    .filter((i) => frets[i] != null && (frets[i] as number) > 0)
 
   return (
     <div className="chord-editor col">
@@ -318,6 +335,7 @@ export default function ChordEditor() {
               mutedStrings={mutedStrings}
               startFret={startFret}
               fretCount={EDITOR_FRET_COUNT}
+              stringCount={stringCount}
               orientation="vertical"
               showLabels
               showFretNumbers
@@ -327,10 +345,10 @@ export default function ChordEditor() {
 
           {/* Per-string readout — shows every string (even off-window) + mute. */}
           <div className="chord-editor__strings" role="group" aria-label="Strings (tap to mute)">
-            {STRING_LABELS.map((lbl, i) => {
+            {stringNames.map((lbl, i) => {
               const f = frets[i]
-              const val = f === null ? '✕' : f === 0 ? 'O' : String(f)
-              const state = f === null ? 'muted' : f === 0 ? 'open' : `fret ${f}`
+              const val = f == null ? '✕' : f === 0 ? 'O' : String(f)
+              const state = f == null ? 'muted' : f === 0 ? 'open' : `fret ${f}`
               return (
                 <button
                   key={i}
@@ -358,10 +376,10 @@ export default function ChordEditor() {
                   type="button"
                   className="chip chord-editor__finger"
                   onClick={() => cycleFinger(i)}
-                  aria-label={`${STRING_LABELS[i]} finger`}
+                  aria-label={`${stringNames[i]} finger`}
                 >
                   <span className="mono chord-editor__finger-string">
-                    {STRING_LABELS[i]}
+                    {stringNames[i]}
                   </span>
                   <span className="chord-editor__finger-val">
                     {fingers[i] != null ? fingers[i] : '–'}

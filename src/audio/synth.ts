@@ -18,8 +18,15 @@
 
 import { Soundfont } from 'smplr'
 
-/** Open-string MIDI notes, low E .. high E (index 0..5). */
+/** Open-string MIDI notes, low E .. high E (6-string standard, index 0..5). */
 const STRING_MIDI: readonly number[] = [40, 45, 50, 55, 59, 64]
+/** 8-string standard open MIDIs (low F# .. high E); 6/7-string are tail slices. */
+const STRING_MIDI_8: readonly number[] = [30, 35, 40, 45, 50, 55, 59, 64]
+
+/** Standard open-string MIDIs for an n-string guitar (n = 6, 7, or 8). */
+export function standardMidisForCount(n: number): number[] {
+  return STRING_MIDI_8.slice(Math.max(0, STRING_MIDI_8.length - n))
+}
 
 /** Soundfont instrument + kit (MusyngKite = higher-quality samples). */
 const SF_INSTRUMENT = 'acoustic_guitar_steel'
@@ -138,12 +145,15 @@ export function midiToFreq(midi: number): number {
  * Convert a chord shape (per-string frets) into the MIDI notes that sound.
  * frets[i] === null means the string is muted and is skipped.
  */
-export function chordMidis(frets: (number | null)[]): number[] {
+export function chordMidis(
+  frets: (number | null)[],
+  openMidis: readonly number[] = STRING_MIDI,
+): number[] {
   const out: number[] = []
-  for (let i = 0; i < frets.length; i++) {
+  for (let i = 0; i < frets.length && i < openMidis.length; i++) {
     const fret = frets[i]
-    if (fret !== null && i < STRING_MIDI.length) {
-      out.push(STRING_MIDI[i] + fret)
+    if (fret !== null) {
+      out.push(openMidis[i] + fret)
     }
   }
   return out
