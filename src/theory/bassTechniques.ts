@@ -1,0 +1,131 @@
+/**
+ * Curated bass techniques for the metronome-driven technique trainer.
+ *
+ * Same shape as the guitar {@link Technique} set, but tailored to electric bass:
+ * plucking-hand fundamentals (fingerstyle, slap/pop), groove tools (ghost notes,
+ * octaves, walking lines) and fretting-hand drills. Exercises are written for a
+ * 4-string bass (E A D G), tab low→high.
+ */
+import type { Technique } from './techniques'
+
+export const BASS_TECHNIQUES: Technique[] = [
+  {
+    id: 'fingerstyle',
+    name: 'Fingerstyle (two-finger)',
+    icon: '🤞',
+    summary: 'Strict alternating index–middle plucking — the core bass stroke.',
+    tips: [
+      'Alternate i–m strictly; never pluck twice in a row with one finger.',
+      'Rest your thumb on the pickup or the string above to anchor and mute.',
+      'Use rest strokes (follow through onto the next string) for a fat, even tone.',
+      'Evenness first — every note the same volume before you add speed.',
+    ],
+    exercise: 'One note, alternate fingers:\nE|-0-0-0-0-0-0-0-0-|\n   i m i m i m i m',
+    defaultSubdivision: 2,
+    subdivisions: [1, 2, 3, 4],
+    startBpm: 60,
+    goalBpm: 170,
+  },
+  {
+    id: 'slap-pop',
+    name: 'Slap & pop',
+    icon: '👍',
+    summary: 'Thumb slap on the low strings, finger pop on the high — funk staple.',
+    tips: [
+      'Slap by rotating the forearm; bounce the thumb off the string, don’t bury it.',
+      'Pop by hooking a finger under the string and snapping it up.',
+      'Mute hard with the fretting hand — silence is half the groove.',
+      'Keep the wrist loose; the motion is a relaxed rotation, not a punch.',
+    ],
+    exercise: 'Slap root, pop octave:\nE|-T---------T-----|\nG|-----P---------P-|\nT = thumb slap · P = pop',
+    defaultSubdivision: 4,
+    subdivisions: [2, 4],
+    startBpm: 50,
+    goalBpm: 130,
+  },
+  {
+    id: 'ghost-notes',
+    name: 'Ghost notes & muting',
+    icon: '🤫',
+    summary: 'Dead, percussive “x” notes that add groove and bounce between hits.',
+    tips: [
+      'Rest the fretting fingers lightly on the string — touching, not pressing.',
+      'Ghost notes are felt, not heard: a muted click on the off-beats.',
+      'Use a floating thumb to mute the strings below the one you’re playing.',
+      'Keep the plucking-hand motion identical so ghosts sit dead in the pocket.',
+    ],
+    exercise: 'Root with ghost off-beats:\nE|-0-x-0-x-0-x-0-x-|\n   x = muted / ghost note',
+    defaultSubdivision: 2,
+    subdivisions: [2, 4],
+    startBpm: 70,
+    goalBpm: 150,
+  },
+  {
+    id: 'octaves',
+    name: 'Octaves',
+    icon: '⤴️',
+    summary: 'Root-and-octave jumps — the disco/funk driving pattern.',
+    tips: [
+      'Fret the root with the index, the octave two strings up and two frets up.',
+      'Let the index lightly mute the string in between so it stays silent.',
+      'Keep the two-string jump rhythmic and even, both notes equal volume.',
+      'Relax the plucking hand — small, repeatable motion across the pair.',
+    ],
+    exercise: 'Root → octave:\nE|-3---3---3---3---|\nD|---5---5---5---5-|',
+    defaultSubdivision: 2,
+    subdivisions: [2, 4],
+    startBpm: 60,
+    goalBpm: 150,
+  },
+  {
+    id: 'walking',
+    name: 'Walking bassline',
+    icon: '🚶',
+    summary: 'Smooth quarter-note lines that walk from one chord to the next.',
+    tips: [
+      'One note per beat — steady quarters, no gaps.',
+      'Land on a chord tone (root/3rd/5th) on beat 1 of each bar.',
+      'Connect chords with a chromatic approach note on beat 4.',
+      'Think ahead: aim at the next root a beat before you arrive.',
+    ],
+    exercise: 'Walk up toward the next chord:\nA|-3---5---7---8---|\n  root  …  approach →',
+    defaultSubdivision: 1,
+    subdivisions: [1, 2],
+    startBpm: 70,
+    goalBpm: 170,
+  },
+  {
+    id: 'legato',
+    name: 'Hammer-ons & pull-offs',
+    icon: '🔗',
+    summary: 'Pluck once, then slur the rest — fluid fills and fast runs.',
+    tips: [
+      'Pluck only the first note; hammer/pull the others.',
+      'Hammer with force from the knuckle so the slurred note rings out.',
+      'Pull off slightly sideways to sound the lower note cleanly.',
+      'Aim for even volume between the plucked and slurred notes.',
+    ],
+    exercise: 'A string:\nA|-5h7h9-9p7p5-|\nh = hammer-on · p = pull-off',
+    defaultSubdivision: 3,
+    subdivisions: [2, 3, 4],
+    startBpm: 60,
+    goalBpm: 150,
+  },
+  {
+    id: 'spider',
+    name: 'Fretting-hand 1-2-3-4',
+    icon: '🕷️',
+    summary: 'Finger-independence and hand-sync drill across all four strings.',
+    tips: [
+      'One finger per fret; keep all four close to the strings.',
+      'Sync the fretting and plucking hands exactly to each tick.',
+      'Press just hard enough for a clean note — no death grip.',
+      'Run E→A→D→G and back; stay relaxed as the tempo climbs.',
+    ],
+    exercise: 'Per string, ascending:\nE|-1-2-3-4-|  then A, D, G',
+    defaultSubdivision: 2,
+    subdivisions: [2, 4],
+    startBpm: 50,
+    goalBpm: 140,
+  },
+]

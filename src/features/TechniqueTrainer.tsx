@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import useMetronome from '../audio/useMetronome'
 import { usePersistentState } from '../lib/usePersistentState'
 import { TECHNIQUES } from '../theory/techniques'
+import type { Technique } from '../theory/techniques'
 import './TechniqueTrainer.css'
 
 const BEATS_PER_MEASURE = 4
@@ -24,8 +25,6 @@ const SUB_LABELS: Record<number, string> = {
 const subLabel = (n: number): string => SUB_LABELS[n] ?? `${n}/beat`
 
 // Validators for persisted settings.
-const isTechniqueId = (v: unknown): v is string =>
-  typeof v === 'string' && TECHNIQUES.some((t) => t.id === v)
 const isBpm = (v: unknown): v is number =>
   typeof v === 'number' && v >= MIN_BPM && v <= MAX_BPM
 const isBool = (v: unknown): v is boolean => typeof v === 'boolean'
@@ -34,26 +33,54 @@ const isStep = (v: unknown): v is number =>
 const isEvery = (v: unknown): v is number =>
   typeof v === 'number' && (EVERY_OPTIONS as readonly number[]).includes(v)
 
-export default function TechniqueTrainer() {
+/**
+ * Metronome-driven technique speed-trainer. Defaults to the guitar
+ * {@link TECHNIQUES}; pass a different `techniques` set (e.g. bass) plus a
+ * `storagePrefix` to run an independent, separately-persisted instance.
+ */
+export default function TechniqueTrainer({
+  techniques = TECHNIQUES,
+  storagePrefix = '',
+}: {
+  techniques?: Technique[]
+  storagePrefix?: string
+} = {}) {
+  // Validate a persisted technique id against THIS instance's set, so a guitar
+  // id can't leak into the bass trainer (or vice versa).
+  const isTechniqueId = (v: unknown): v is string =>
+    typeof v === 'string' && techniques.some((t) => t.id === v)
+
   // ── Persisted setup ───────────────────────────────────────────────────────
   const [techniqueId, setTechniqueId] = usePersistentState<string>(
-    'tt:technique',
-    TECHNIQUES[0].id,
+    `${storagePrefix}tt:technique`,
+    techniques[0].id,
     isTechniqueId,
   )
-  const [bpm, setBpm] = usePersistentState<number>('tt:bpm', 80, isBpm)
-  const [goalBpm, setGoalBpm] = usePersistentState<number>('tt:goal', 160, isBpm)
+  const [bpm, setBpm] = usePersistentState<number>(`${storagePrefix}tt:bpm`, 80, isBpm)
+  const [goalBpm, setGoalBpm] = usePersistentState<number>(
+    `${storagePrefix}tt:goal`,
+    160,
+    isBpm,
+  )
   const [speedEnabled, setSpeedEnabled] = usePersistentState<boolean>(
-    'tt:speed',
+    `${storagePrefix}tt:speed`,
     false,
     isBool,
   )
-  const [stepBpm, setStepBpm] = usePersistentState<number>('tt:step', 5, isStep)
-  const [everyBars, setEveryBars] = usePersistentState<number>('tt:every', 2, isEvery)
+  const [stepBpm, setStepBpm] = usePersistentState<number>(
+    `${storagePrefix}tt:step`,
+    5,
+    isStep,
+  )
+  const [everyBars, setEveryBars] = usePersistentState<number>(
+    `${storagePrefix}tt:every`,
+    2,
+    isEvery,
+  )
 
   const technique = useMemo(
-    () => TECHNIQUES.find((t) => t.id === techniqueId) ?? TECHNIQUES[0],
-    [techniqueId],
+    () => techniques.find((t) => t.id === techniqueId) ?? techniques[0],
+    [techniques, techniqueId],
   )
 
   // Subdivision is transient: it follows the technique's default and can be
@@ -146,7 +173,7 @@ export default function TechniqueTrainer() {
             value={technique.id}
             onChange={(e) => setTechniqueId(e.target.value)}
           >
-            {TECHNIQUES.map((t) => (
+            {techniques.map((t) => (
               <option key={t.id} value={t.id}>
                 {t.icon} {t.name}
               </option>

@@ -6,12 +6,16 @@ At current state most of the code was written using AI, so do expect bad code qu
 
 ---
 
-A **client-side** guitar practice app. No server, no accounts, no backend —
-everything runs in your browser. Builds to plain static files you can host
-anywhere (or open from disk). The only network use is fetching the guitar
+A **client-side** guitar, bass + drums practice app. No server, no accounts, no
+backend — everything runs in your browser. Builds to plain static files you can
+host anywhere (or open from disk). The only network use is fetching the guitar
 sound samples on first play (see Audio below); everything else works offline.
 
-Six practice tools:
+A 🎸 **Guitar** / 𝄢 **Bass** / 🥁 **Drums** switch in the header swaps between
+the three toolsets (it remembers your section + last tab; the Metronome is
+shared).
+
+### 🎸 Guitar tools
 
 - **🎯 Chord Trainer** — a Rocksmith-style minigame. Chords come up driven by the
   metronome (random, or a chord **progression** — ii–V–I, 12-bar blues, 王道
@@ -37,6 +41,30 @@ Six practice tools:
   (anywhere on the neck, optional finger numbers) and **custom scales** by
   clicking notes against a root, with live preview + playback. Saved to
   `localStorage`, and they appear in the Trainer / Explorer next to the built-ins.
+
+### 𝄢 Bass tools
+
+A 4-string **bass** section (E A D G, an octave below a guitar's bottom four
+strings) with its own neck and tuning — independent of the guitar header tuning.
+
+- **🎼 Scale Explorer** — the same scale/mode browser drawn on a 4-string bass
+  neck (transposable root, note names ↔ degrees, play up/down).
+- **🤘 Technique** — the speed-trainer with a **bass-specific** set: fingerstyle
+  (two-finger), slap & pop, ghost notes & muting, octaves, walking basslines,
+  hammer-ons/pull-offs, and a fretting-hand 1-2-3-4 drill — each with tips, a
+  tiny exercise, a subdivision guide, and the auto tempo-ramp.
+- **🎚 Tuner** — the McLeod-Pitch-Method mic tuner fixed to the 4-string bass
+  (auto-detect or lock a string, cents meter), reaching down to the low E.
+- **⏱ Metronome** — the same shared metronome.
+
+### 🥁 Drums tools
+
+- **🥁 Beat Editor** — sketch a beat on a touch **grid** (kick / snare / hi-hat /
+  toms / cymbals × steps), or flip to a read-only **notation** view of the same
+  pattern; a playhead sweeps across on playback. Subdivision (8ths / triplets /
+  16ths), 1–2 bars, tempo, a synthesized kit (instant + offline), starter
+  grooves, and save/load to `localStorage`.
+- **⏱ Metronome** — the same shared metronome.
 
 A global **tuning** selector in the header (6 / 7 / 8-string standard) drives
 every fretboard view — Tuner, Scale Explorer, Chord Trainer, and both editors.
@@ -116,32 +144,40 @@ src/
     chordsJrock.ts         J-Rock chord set (maj7/m7/add9/sus/slash/…) — own filter
     chordsExtended.ts      native 7/8-string voicings (low B / F# power chords)
     progressions.ts        preset chord progressions (ii–V–I, 12-bar blues, …)
-    techniques.ts          technique definitions (tips, exercises, tempos)
+    techniques.ts          guitar technique definitions (tips, exercises, tempos)
+    bassTechniques.ts      bass technique set (fingerstyle, slap/pop, walking, …)
     customScales.ts        load/save user scales to localStorage
     useCustomScales.ts     React hook syncing custom scales across views
     customChords.ts        load/save user chords to localStorage
     useCustomChords.ts     React hook syncing custom chords across views
-    tuning.ts              tuning model + 6/7/8-string presets
+    tuning.ts              tuning model + 6/7/8-string + 4-string bass presets
     useTuning.tsx          global tuning context (persisted)
+    drums.ts               drum voices + pattern model + preset grooves
+    useDrumPatterns.ts     localStorage store for user drum patterns
   audio/
     useMetronome.ts        Web Audio lookahead scheduler (with subdivisions)
     synth.ts               guitar playback: smplr soundfont + Karplus-Strong fallback
     pitchDetect.ts         note/string helpers for the tuner
     useTuner.ts            mic + pitch-detection hook (pitchy)
+    drumKit.ts             synthesized drum voices (Web Audio)
+    useDrumSequencer.ts    step-sequencer playback hook (+ playhead)
   lib/
     usePersistentState.ts  validated localStorage-backed useState
   components/
-    Fretboard.tsx          SVG 6-string fretboard (interactive, H & V)
+    Fretboard.tsx          SVG fretboard, any string count (interactive, H & V)
     Metronome.tsx          standalone metronome panel
+    DrumGrid.tsx           editable step grid (voices × steps)
+    DrumNotation.tsx       read-only drum-notation view (SVG)
   features/
     ChordTrainer.tsx       the chord minigame
-    ScaleExplorer.tsx      the scale visualizer
-    TechniqueTrainer.tsx   technique speed-trainer
-    Tuner.tsx              microphone tuner (6/7/8-string)
+    ScaleExplorer.tsx      the scale visualizer (guitar or bass neck)
+    TechniqueTrainer.tsx   technique speed-trainer (guitar or bass set)
+    Tuner.tsx              microphone tuner (6/7/8-string guitar or 4-string bass)
     ChordEditor.tsx        build + save custom chords (anywhere on the neck)
     ScaleEditor.tsx        build + save custom scales
     Editor.tsx             wrapper hosting both editors
-  App.tsx                  tab shell (Chords / Scales / Metronome / Technique / Tuner / Editor)
+    DrumEditor.tsx         beat editor (grid ⇄ notation) + playback + save
+  App.tsx                  🎸/𝄢/🥁 section switch + per-section tab shell
   index.css                design tokens + shared UI classes
 ```
 

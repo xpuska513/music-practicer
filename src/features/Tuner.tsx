@@ -1,10 +1,18 @@
 import { useTuner } from '../audio/useTuner'
 import { useTuning } from '../theory/useTuning'
 import { stringLabels, stringOrdinal } from '../theory/tuning'
+import type { Tuning } from '../theory/tuning'
 import './Tuner.css'
 
-export default function Tuner() {
-  const { tuning } = useTuning()
+/**
+ * Microphone tuner. Defaults to the app-wide guitar tuning (header selector);
+ * pass a fixed `tuning` (e.g. the 4-string bass) to tune to that instead, with
+ * no header control.
+ */
+export default function Tuner({ tuning: tuningProp }: { tuning?: Tuning } = {}) {
+  const { tuning: guitarTuning } = useTuning()
+  const tuning = tuningProp ?? guitarTuning
+  const fixedTuning = tuningProp != null
   const labels = stringLabels(tuning)
   const {
     status,
@@ -169,7 +177,8 @@ export default function Tuner() {
 
         <p className="muted tuner-hint">
           {tuning.name}. Play one string and let it ring; tap a string above to
-          lock onto it, or leave it on Auto. (Change the tuning in the header.)
+          lock onto it, or leave it on Auto.
+          {fixedTuning ? '' : ' (Change the tuning in the header.)'}
         </p>
       </div>
     </section>

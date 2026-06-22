@@ -24,6 +24,17 @@ export const TUNINGS: Tuning[] = [
 
 export const DEFAULT_TUNING_ID = '6-standard'
 
+/**
+ * Standard 4-string bass tuning (E A D G), an octave below a guitar's bottom
+ * four strings: E1 A1 D2 G2. Kept out of {@link TUNINGS} (which drives the
+ * guitar header selector) — the Bass section uses this fixed tuning directly.
+ */
+export const BASS_TUNING: Tuning = {
+  id: 'bass-4-standard',
+  name: '4-string bass · E A D G',
+  strings: [28, 33, 38, 43],
+}
+
 export function tuningById(id: string): Tuning {
   return TUNINGS.find((t) => t.id === id) ?? TUNINGS[0]
 }

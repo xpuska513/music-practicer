@@ -1,0 +1,96 @@
+/* DrumGrid — editable step grid for the drum editor.
+   Reuses tokens from index.css (--bg-elev-2, --border, --accent, etc.). */
+
+.drumgrid-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 12px;
+}
+
+.drumgrid {
+  display: inline-grid;
+  /* one sticky label column + N equal step columns */
+  grid-template-columns: max-content repeat(var(--steps), 34px);
+  gap: 4px;
+  min-width: min-content;
+}
+
+.drumgrid-row {
+  display: contents;
+}
+
+.drumgrid-label {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 10px 0 4px;
+  min-width: 44px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-dim);
+  background: var(--bg-elev);
+}
+
+.drumgrid-cell {
+  appearance: none;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--bg-elev-2);
+  color: var(--accent);
+  cursor: pointer;
+  font: inherit;
+  line-height: 1;
+  transition: background 0.1s, border-color 0.1s, transform 0.04s;
+}
+
+.drumgrid-cell:hover {
+  background: #232c37;
+}
+
+.drumgrid-cell:active {
+  transform: translateY(1px);
+}
+
+.drumgrid-cell:focus-visible {
+  outline: 2px solid var(--accent-3);
+  outline-offset: 1px;
+}
+
+/* Active hit */
+.drumgrid-cell.is-active {
+  background: rgba(61, 220, 151, 0.16);
+  border-color: var(--accent);
+}
+
+.drumgrid-glyph {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+/* Beat / bar dividers — a thicker left edge marks the start of each group. */
+.drumgrid-cell.is-beat-start {
+  border-left: 2px solid var(--fret-line);
+}
+
+.drumgrid-cell.is-bar-start {
+  border-left: 3px solid var(--accent-3);
+}
+
+/* Playhead column highlight */
+.drumgrid-cell.is-playhead {
+  box-shadow: inset 0 0 0 2px var(--accent-2);
+  background: rgba(245, 166, 35, 0.12);
+}
+
+.drumgrid-cell.is-playhead.is-active {
+  background: rgba(245, 166, 35, 0.22);
+}

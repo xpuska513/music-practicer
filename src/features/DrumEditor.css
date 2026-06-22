@@ -1,0 +1,74 @@
+.drum-editor {
+  gap: 16px;
+  max-width: 920px;
+  margin: 0 auto;
+}
+
+.drum-editor__setup {
+  gap: 14px;
+}
+
+.drum-editor__controls {
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.drum-editor__bpm {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.drum-editor__transport {
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.drum-editor__feedback {
+  margin: 0;
+  font-size: 14px;
+}
+
+.drum-editor__surface {
+  overflow: hidden;
+  padding: 16px 12px;
+}
+
+.drum-editor__saved-title {
+  margin: 0;
+}
+
+.drum-editor__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.drum-editor__list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 10px 12px;
+}
+
+.drum-editor__list-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.drum-editor__list-name {
+  font-weight: 700;
+}
+
+.drum-editor__list-actions {
+  flex-wrap: nowrap;
+}

@@ -158,6 +158,13 @@ input[type='range'] { width: 100%; accent-color: var(--accent); }
   font-size: 13px;
   margin-left: 12px;
 }
+.app-instrument {
+  margin-left: 12px;
+}
+.app-instrument .chip {
+  font-size: 13px;
+  padding: 6px 12px;
+}
 
 .tabbar { display: flex; gap: 6px; margin-left: auto; }
 .tab {
@@ -186,6 +193,9 @@ input[type='range'] { width: 100%; accent-color: var(--accent); }
 /* ---- Mobile ---- */
 @media (max-width: 680px) {
   .app-header { flex-wrap: wrap; }
+  /* When the header wraps, drop the left margins so rows align to the edge. */
+  .app-instrument,
+  .app-tuning { margin-left: 0; }
   .tabbar {
     position: fixed;
     bottom: 0;

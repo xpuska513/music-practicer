@@ -9,6 +9,7 @@ import {
 import Fretboard from '../components/Fretboard'
 import { useCustomScales } from '../theory/useCustomScales'
 import { useTuning } from '../theory/useTuning'
+import type { Tuning } from '../theory/tuning'
 import { scaleMidis, playSequence, resumeAudio, stopAll } from '../audio/synth'
 import { usePersistentState } from '../lib/usePersistentState'
 import type { FretMark, NoteName, ScaleDef } from '../types'
@@ -47,11 +48,14 @@ const CATEGORY_ORDER: ScaleDef['category'][] = [
 
 /**
  * Interactive scale/mode browser: pick a root and a scale, then see every
- * matching position across the whole neck, plus the scale spelling.
+ * matching position across the whole neck, plus the scale spelling. Defaults to
+ * the app-wide guitar tuning (header selector); pass a fixed `tuning` (e.g. the
+ * 4-string bass) to draw the scale on that neck instead.
  */
-function ScaleExplorer() {
+function ScaleExplorer({ tuning: tuningProp }: { tuning?: Tuning } = {}) {
   const { customScales } = useCustomScales()
-  const { tuning } = useTuning()
+  const { tuning: guitarTuning } = useTuning()
+  const tuning = tuningProp ?? guitarTuning
   // Open-string pitch classes for the active tuning (low→high).
   const tuningPcs = useMemo(
     () => tuning.strings.map((m) => ((m % 12) + 12) % 12),

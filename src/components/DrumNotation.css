@@ -1,0 +1,70 @@
+.drum-notation {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 8px 4px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.drum-notation__svg {
+  display: block;
+  height: auto;
+}
+
+.drum-notation__staff-line {
+  stroke: var(--text);
+  stroke-width: 1;
+  opacity: 0.55;
+}
+
+.drum-notation__barline {
+  stroke: var(--text);
+  stroke-width: 2;
+  opacity: 0.7;
+}
+
+.drum-notation__beatline {
+  stroke: var(--text);
+  stroke-width: 1;
+  opacity: 0.18;
+}
+
+.drum-notation__sig {
+  fill: var(--text);
+  font-family: var(--font);
+  font-weight: 800;
+  font-size: 13px;
+  text-anchor: middle;
+  opacity: 0.85;
+}
+
+.drum-notation__stem {
+  stroke: var(--text);
+  stroke-width: 1.5;
+}
+
+.drum-notation__head-dot {
+  fill: var(--text);
+}
+
+.drum-notation__head-open {
+  fill: none;
+  stroke: var(--text);
+  stroke-width: 1.75;
+}
+
+.drum-notation__head-x {
+  stroke: var(--text);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.drum-notation__playhead {
+  stroke: var(--accent);
+  stroke-width: 2;
+  opacity: 0.9;
+}
