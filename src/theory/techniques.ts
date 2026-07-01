@@ -3,8 +3,54 @@
  *
  * Each technique carries a short description, practice tips, a tiny exercise
  * (shown monospaced), a default + allowed subdivisions (the picking-guide rate),
- * and a suggested start/goal tempo for the speed trainer.
+ * a suggested start/goal tempo for the speed trainer, an optional animated
+ * {@link TechniqueMotion} diagram, and a search query for an optional
+ * "watch a real demo" link.
  */
+
+/** A single plucking/fretting event in a {@link TechniqueMotion} loop. */
+export type MotionAction =
+  | 'down' // pick downstroke
+  | 'up' // pick upstroke
+  | 'i' // pluck with index finger
+  | 'm' // pluck with middle finger
+  | 'hammer' // hammer-on
+  | 'pull' // pull-off
+  | 'slap' // thumb slap (bass)
+  | 'pop' // finger pop (bass)
+  | 'mute' // dead / ghost note
+  | 'bend' // bend up to pitch
+  | 'tap' // picking-hand tap
+
+export interface MotionStep {
+  /** Row index into {@link TechniqueMotion.strings} (0 = top row). */
+  string: number
+  /** Fret number (0 = open). */
+  fret: number
+  /** What happens on this step (drives the glyph + animation). */
+  action: MotionAction
+}
+
+/**
+ * A compact, data-driven animation spec. The {@link MotionStep} list is one
+ * full loop; the diagram advances `stepsPerBeat` steps per beat, so the whole
+ * thing stays locked to the trainer's current BPM.
+ */
+export interface TechniqueMotion {
+  /** String labels shown top→bottom (e.g. ['G'] or ['G','D','A','E']). */
+  strings: string[]
+  /** Highest fret drawn (window 0..frets); use 0 for an open-string drill. */
+  frets: number
+  /** One loop of motion, advanced left→right then repeated. */
+  steps: MotionStep[]
+  /** Steps per beat — paces the loop against the trainer BPM. */
+  stepsPerBeat: number
+  /** One-line caption under the diagram. */
+  caption: string
+  /** Draw a "P.M." palm-mute bracket at the bridge. */
+  palmMute?: boolean
+}
+
 export interface Technique {
   id: string
   name: string
@@ -20,6 +66,10 @@ export interface Technique {
   /** Suggested speed-trainer range. */
   startBpm: number
   goalBpm: number
+  /** Animated motion diagram (paced to the trainer BPM). */
+  motion?: TechniqueMotion
+  /** YouTube search query for the optional "watch a real demo" link. */
+  demoQuery?: string
 }
 
 export const TECHNIQUES: Technique[] = [
@@ -38,6 +88,17 @@ export const TECHNIQUES: Technique[] = [
     subdivisions: [2, 3, 4, 6],
     startBpm: 60,
     goalBpm: 180,
+    motion: {
+      strings: ['G'],
+      frets: 4,
+      steps: [
+        { string: 0, fret: 2, action: 'down' },
+        { string: 0, fret: 2, action: 'up' },
+      ],
+      stepsPerBeat: 4,
+      caption: 'Rapid, even down–up on one note.',
+    },
+    demoQuery: 'tremolo picking guitar technique lesson',
   },
   {
     id: 'alternate',
@@ -54,6 +115,19 @@ export const TECHNIQUES: Technique[] = [
     subdivisions: [2, 4, 6],
     startBpm: 60,
     goalBpm: 160,
+    motion: {
+      strings: ['A'],
+      frets: 5,
+      steps: [
+        { string: 0, fret: 2, action: 'down' },
+        { string: 0, fret: 3, action: 'up' },
+        { string: 0, fret: 4, action: 'down' },
+        { string: 0, fret: 5, action: 'up' },
+      ],
+      stepsPerBeat: 4,
+      caption: 'Strict down–up, one note per stroke.',
+    },
+    demoQuery: 'alternate picking guitar lesson beginner',
   },
   {
     id: 'spider',
@@ -70,6 +144,19 @@ export const TECHNIQUES: Technique[] = [
     subdivisions: [2, 4],
     startBpm: 50,
     goalBpm: 140,
+    motion: {
+      strings: ['E'],
+      frets: 4,
+      steps: [
+        { string: 0, fret: 1, action: 'down' },
+        { string: 0, fret: 2, action: 'up' },
+        { string: 0, fret: 3, action: 'down' },
+        { string: 0, fret: 4, action: 'up' },
+      ],
+      stepsPerBeat: 4,
+      caption: 'Fingers 1-2-3-4, one per fret, alternate picking.',
+    },
+    demoQuery: 'spider walk 1234 finger exercise guitar',
   },
   {
     id: 'legato',
@@ -86,6 +173,18 @@ export const TECHNIQUES: Technique[] = [
     subdivisions: [2, 3, 4],
     startBpm: 60,
     goalBpm: 150,
+    motion: {
+      strings: ['G'],
+      frets: 5,
+      steps: [
+        { string: 0, fret: 2, action: 'down' },
+        { string: 0, fret: 4, action: 'hammer' },
+        { string: 0, fret: 2, action: 'pull' },
+      ],
+      stepsPerBeat: 3,
+      caption: 'Pick once, then hammer-on and pull-off.',
+    },
+    demoQuery: 'legato hammer on pull off guitar lesson',
   },
   {
     id: 'palm-mute',
@@ -102,6 +201,18 @@ export const TECHNIQUES: Technique[] = [
     subdivisions: [1, 2, 4],
     startBpm: 80,
     goalBpm: 200,
+    motion: {
+      strings: ['E'],
+      frets: 0,
+      steps: [
+        { string: 0, fret: 0, action: 'down' },
+        { string: 0, fret: 0, action: 'down' },
+      ],
+      stepsPerBeat: 2,
+      caption: 'Muted “chug” downstrokes at the bridge.',
+      palmMute: true,
+    },
+    demoQuery: 'palm muting guitar technique lesson',
   },
   {
     id: 'string-skip',
@@ -118,6 +229,17 @@ export const TECHNIQUES: Technique[] = [
     subdivisions: [2, 4],
     startBpm: 60,
     goalBpm: 140,
+    motion: {
+      strings: ['D', 'A', 'E'],
+      frets: 6,
+      steps: [
+        { string: 2, fret: 3, action: 'down' },
+        { string: 0, fret: 5, action: 'up' },
+      ],
+      stepsPerBeat: 2,
+      caption: 'Jump over the middle (muted) string cleanly.',
+    },
+    demoQuery: 'string skipping guitar exercise lesson',
   },
   {
     id: 'bends',
@@ -134,6 +256,14 @@ export const TECHNIQUES: Technique[] = [
     subdivisions: [1, 2],
     startBpm: 50,
     goalBpm: 100,
+    motion: {
+      strings: ['G'],
+      frets: 5,
+      steps: [{ string: 0, fret: 4, action: 'bend' }],
+      stepsPerBeat: 1,
+      caption: 'Bend up to pitch, then release — in time.',
+    },
+    demoQuery: 'string bending guitar technique in tune lesson',
   },
   {
     id: 'sweep',
@@ -150,6 +280,21 @@ export const TECHNIQUES: Technique[] = [
     subdivisions: [3, 4, 6],
     startBpm: 60,
     goalBpm: 150,
+    motion: {
+      strings: ['e', 'B', 'G'],
+      frets: 8,
+      steps: [
+        { string: 2, fret: 5, action: 'down' },
+        { string: 1, fret: 5, action: 'down' },
+        { string: 0, fret: 8, action: 'down' },
+        { string: 0, fret: 8, action: 'up' },
+        { string: 1, fret: 5, action: 'up' },
+        { string: 2, fret: 5, action: 'up' },
+      ],
+      stepsPerBeat: 3,
+      caption: 'One fluid stroke up the strings, then back down.',
+    },
+    demoQuery: 'sweep picking guitar lesson beginner',
   },
   {
     id: 'tapping',
@@ -166,5 +311,17 @@ export const TECHNIQUES: Technique[] = [
     subdivisions: [3, 4, 6],
     startBpm: 70,
     goalBpm: 160,
+    motion: {
+      strings: ['e'],
+      frets: 12,
+      steps: [
+        { string: 0, fret: 12, action: 'tap' },
+        { string: 0, fret: 5, action: 'pull' },
+        { string: 0, fret: 8, action: 'hammer' },
+      ],
+      stepsPerBeat: 3,
+      caption: 'Tap with the picking hand, then pull-off and hammer-on.',
+    },
+    demoQuery: 'two hand tapping guitar lesson beginner',
   },
 ]

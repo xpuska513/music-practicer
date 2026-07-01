@@ -33,6 +33,9 @@ shared).
 - **🤘 Technique** — a metronome speed-trainer for techniques (tremolo, alternate
   picking, legato, palm muting, sweeps, tapping…): tips, a tiny exercise, an
   audible subdivision guide, and an auto tempo-ramp (+BPM every N bars to a goal).
+  Each technique shows an **animated motion diagram** that demonstrates the
+  stroke (↓↑, hammer/pull, …) in time with your current tempo, plus a "watch a
+  real demo" link.
 - **🎚 Tuner** — microphone tuner using the McLeod Pitch Method
   ([`pitchy`](https://github.com/ianprime0509/pitchy)). Auto-detects the nearest
   string or lock to one, with a cents meter. Supports **6-, 7- and 8-string**
@@ -52,7 +55,8 @@ strings) with its own neck and tuning — independent of the guitar header tunin
 - **🤘 Technique** — the speed-trainer with a **bass-specific** set: fingerstyle
   (two-finger), slap & pop, ghost notes & muting, octaves, walking basslines,
   hammer-ons/pull-offs, and a fretting-hand 1-2-3-4 drill — each with tips, a
-  tiny exercise, a subdivision guide, and the auto tempo-ramp.
+  tiny exercise, a subdivision guide, an animated motion diagram (slap/pop,
+  ghost notes, walking, …), a demo link, and the auto tempo-ramp.
 - **🎚 Tuner** — the McLeod-Pitch-Method mic tuner fixed to the 4-string bass
   (auto-detect or lock a string, cents meter), reaching down to the low E.
 - **⏱ Metronome** — the same shared metronome.
@@ -144,7 +148,7 @@ src/
     chordsJrock.ts         J-Rock chord set (maj7/m7/add9/sus/slash/…) — own filter
     chordsExtended.ts      native 7/8-string voicings (low B / F# power chords)
     progressions.ts        preset chord progressions (ii–V–I, 12-bar blues, …)
-    techniques.ts          guitar technique definitions (tips, exercises, tempos)
+    techniques.ts          guitar technique defs (tips, exercises, motion specs)
     bassTechniques.ts      bass technique set (fingerstyle, slap/pop, walking, …)
     customScales.ts        load/save user scales to localStorage
     useCustomScales.ts     React hook syncing custom scales across views
@@ -168,6 +172,7 @@ src/
     Metronome.tsx          standalone metronome panel
     DrumGrid.tsx           editable step grid (voices × steps)
     DrumNotation.tsx       read-only drum-notation view (SVG)
+    TechniqueMotion.tsx    animated, BPM-synced technique motion diagram (SVG)
   features/
     ChordTrainer.tsx       the chord minigame
     ScaleExplorer.tsx      the scale visualizer (guitar or bass neck)

@@ -121,6 +121,40 @@
   background: var(--accent-2);
 }
 
+/* ---- Motion diagram ---- */
+.tt-motion {
+  width: 100%;
+  max-width: 540px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+}
+.tt-motion-caption {
+  margin: 0;
+  font-size: 13px;
+  text-align: center;
+}
+
+.tt-demo-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent-3);
+  text-decoration: none;
+  padding: 6px 10px;
+  border-radius: var(--r-sm);
+}
+.tt-demo-link:hover {
+  text-decoration: underline;
+}
+
 /* ---- Speed status ---- */
 .tt-speed-status {
   width: 100%;

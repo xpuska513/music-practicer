@@ -1,0 +1,104 @@
+/* Animated technique motion diagram. Reuses the app's design tokens. */
+
+.tm {
+  display: block;
+  width: 100%;
+  max-width: 540px;
+  height: auto;
+  user-select: none;
+}
+
+/* Neck */
+.tm-nut {
+  stroke: var(--text-dim);
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+.tm-fret {
+  stroke: var(--fret-line);
+  stroke-width: 1.5;
+}
+.tm-string {
+  stroke: var(--string);
+}
+.tm-string-label {
+  fill: var(--text-dim);
+  font: 600 12px var(--mono);
+  text-anchor: end;
+  dominant-baseline: middle;
+}
+
+/* Every step's position, drawn faint so the whole shape reads at a glance. */
+.tm-ghost {
+  fill: color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+/* The active note. */
+.tm-dot {
+  fill: var(--accent);
+}
+.tm-glyph {
+  fill: var(--text);
+  font: 700 13px var(--mono);
+  text-anchor: middle;
+  dominant-baseline: middle;
+}
+.tm-mute-x {
+  fill: var(--text-dim);
+  font: 700 15px var(--mono);
+  text-anchor: middle;
+  dominant-baseline: middle;
+}
+
+/* Palm-mute bracket at the bridge. */
+.tm-pm-line {
+  stroke: var(--accent-2);
+  stroke-width: 2;
+  stroke-dasharray: 3 3;
+}
+.tm-pm-label {
+  fill: var(--accent-2);
+  font: 700 10px var(--mono);
+  text-anchor: start;
+}
+
+/* Strike pulse — re-fires each step because the group is keyed by tick. */
+.tm-active {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: tm-strike 240ms ease-out;
+}
+@keyframes tm-strike {
+  from {
+    opacity: 0.35;
+    transform: scale(0.5);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Bend rises to pitch and releases within one step (duration set inline). */
+.tm-active--bend {
+  animation-name: tm-bend;
+  animation-timing-function: ease-in-out;
+}
+@keyframes tm-bend {
+  0% {
+    transform: translateY(2px);
+  }
+  50% {
+    transform: translateY(-7px);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tm-active,
+  .tm-active--bend {
+    animation: none;
+  }
+}

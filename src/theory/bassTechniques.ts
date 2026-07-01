@@ -25,6 +25,17 @@ export const BASS_TECHNIQUES: Technique[] = [
     subdivisions: [1, 2, 3, 4],
     startBpm: 60,
     goalBpm: 170,
+    motion: {
+      strings: ['G'],
+      frets: 4,
+      steps: [
+        { string: 0, fret: 2, action: 'i' },
+        { string: 0, fret: 2, action: 'm' },
+      ],
+      stepsPerBeat: 2,
+      caption: 'Alternate index & middle, perfectly even.',
+    },
+    demoQuery: 'bass two finger plucking technique lesson',
   },
   {
     id: 'slap-pop',
@@ -42,6 +53,17 @@ export const BASS_TECHNIQUES: Technique[] = [
     subdivisions: [2, 4],
     startBpm: 50,
     goalBpm: 130,
+    motion: {
+      strings: ['G', 'D', 'A', 'E'],
+      frets: 4,
+      steps: [
+        { string: 3, fret: 0, action: 'slap' },
+        { string: 0, fret: 0, action: 'pop' },
+      ],
+      stepsPerBeat: 2,
+      caption: 'Thumb slaps the low string; finger pops the high.',
+    },
+    demoQuery: 'slap bass technique thumb pop lesson beginner',
   },
   {
     id: 'ghost-notes',
@@ -59,6 +81,19 @@ export const BASS_TECHNIQUES: Technique[] = [
     subdivisions: [2, 4],
     startBpm: 70,
     goalBpm: 150,
+    motion: {
+      strings: ['E'],
+      frets: 0,
+      steps: [
+        { string: 0, fret: 0, action: 'i' },
+        { string: 0, fret: 0, action: 'mute' },
+        { string: 0, fret: 0, action: 'm' },
+        { string: 0, fret: 0, action: 'mute' },
+      ],
+      stepsPerBeat: 2,
+      caption: 'Real note, ghost (✕), real, ghost.',
+    },
+    demoQuery: 'bass ghost notes muting technique lesson',
   },
   {
     id: 'octaves',
@@ -76,6 +111,17 @@ export const BASS_TECHNIQUES: Technique[] = [
     subdivisions: [2, 4],
     startBpm: 60,
     goalBpm: 150,
+    motion: {
+      strings: ['G', 'D', 'A', 'E'],
+      frets: 6,
+      steps: [
+        { string: 3, fret: 3, action: 'i' },
+        { string: 1, fret: 5, action: 'm' },
+      ],
+      stepsPerBeat: 2,
+      caption: 'Root, then its octave two strings up.',
+    },
+    demoQuery: 'bass octaves technique lesson funk',
   },
   {
     id: 'walking',
@@ -93,6 +139,19 @@ export const BASS_TECHNIQUES: Technique[] = [
     subdivisions: [1, 2],
     startBpm: 70,
     goalBpm: 170,
+    motion: {
+      strings: ['G', 'D', 'A', 'E'],
+      frets: 8,
+      steps: [
+        { string: 2, fret: 3, action: 'i' },
+        { string: 2, fret: 5, action: 'm' },
+        { string: 2, fret: 7, action: 'i' },
+        { string: 2, fret: 8, action: 'm' },
+      ],
+      stepsPerBeat: 1,
+      caption: 'One note per beat, walking to the next chord.',
+    },
+    demoQuery: 'walking bass line lesson beginner',
   },
   {
     id: 'legato',
@@ -110,6 +169,18 @@ export const BASS_TECHNIQUES: Technique[] = [
     subdivisions: [2, 3, 4],
     startBpm: 60,
     goalBpm: 150,
+    motion: {
+      strings: ['A'],
+      frets: 7,
+      steps: [
+        { string: 0, fret: 5, action: 'i' },
+        { string: 0, fret: 7, action: 'hammer' },
+        { string: 0, fret: 5, action: 'pull' },
+      ],
+      stepsPerBeat: 3,
+      caption: 'Pluck once, then hammer-on and pull-off.',
+    },
+    demoQuery: 'bass hammer on pull off legato lesson',
   },
   {
     id: 'spider',
@@ -127,5 +198,18 @@ export const BASS_TECHNIQUES: Technique[] = [
     subdivisions: [2, 4],
     startBpm: 50,
     goalBpm: 140,
+    motion: {
+      strings: ['E'],
+      frets: 4,
+      steps: [
+        { string: 0, fret: 1, action: 'i' },
+        { string: 0, fret: 2, action: 'm' },
+        { string: 0, fret: 3, action: 'i' },
+        { string: 0, fret: 4, action: 'm' },
+      ],
+      stepsPerBeat: 2,
+      caption: 'One finger per fret, hands locked to the click.',
+    },
+    demoQuery: 'bass finger exercise 1234 lesson',
   },
 ]

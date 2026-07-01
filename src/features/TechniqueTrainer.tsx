@@ -3,6 +3,7 @@ import useMetronome from '../audio/useMetronome'
 import { usePersistentState } from '../lib/usePersistentState'
 import { TECHNIQUES } from '../theory/techniques'
 import type { Technique } from '../theory/techniques'
+import TechniqueMotion from '../components/TechniqueMotion'
 import './TechniqueTrainer.css'
 
 const BEATS_PER_MEASURE = 4
@@ -336,6 +337,29 @@ export default function TechniqueTrainer({
             />
           ))}
         </div>
+
+        {technique.motion ? (
+          <div className="tt-motion">
+            <span className="muted tt-section-label">
+              Motion <span className="mono">· {bpm} BPM</span>
+            </span>
+            <TechniqueMotion motion={technique.motion} bpm={bpm} />
+            <p className="muted tt-motion-caption">{technique.motion.caption}</p>
+          </div>
+        ) : null}
+
+        {technique.demoQuery ? (
+          <a
+            className="tt-demo-link"
+            href={`https://www.youtube.com/results?search_query=${encodeURIComponent(
+              technique.demoQuery,
+            )}`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            ▶ Watch a real demo ↗
+          </a>
+        ) : null}
 
         {speedEnabled ? (
           <div className="tt-speed-status col">
