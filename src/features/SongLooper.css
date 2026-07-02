@@ -1,0 +1,210 @@
+.song-looper {
+  max-width: 900px;
+  margin: 0 auto;
+  gap: 16px;
+}
+
+.song-looper__h {
+  margin: 0;
+  font-size: 17px;
+}
+.song-looper__sub {
+  margin: 2px 0 0;
+  font-size: 13px;
+}
+.song-looper__err {
+  margin: 0;
+  color: var(--danger);
+  font-size: 13px;
+}
+
+.song-looper__lib-head,
+.song-looper__viewer-head {
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.song-looper__viewer-head {
+  align-items: baseline;
+}
+.song-looper__status {
+  font-size: 13px;
+  white-space: nowrap;
+}
+.song-looper__file {
+  display: none;
+}
+
+/* Library list */
+.song-looper__songs,
+.song-looper__sections {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.song-looper__song,
+.song-looper__section {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 8px 10px;
+}
+.song-looper__song.is-active {
+  border-color: var(--accent);
+}
+.song-looper__song-open {
+  flex: 1;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  background: none;
+  border: none;
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+  padding: 2px 0;
+}
+.song-looper__song-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.song-looper__song-meta {
+  font-size: 12px;
+  flex-shrink: 0;
+}
+.song-looper__song-del {
+  flex-shrink: 0;
+  padding: 6px 12px;
+}
+
+/* Track mixer */
+.song-looper__mixer {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.song-looper__mix {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 5px 8px;
+}
+.song-looper__mix.is-viewing {
+  border-color: var(--accent);
+}
+.song-looper__mix-name {
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  padding: 4px 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.song-looper__mix-view {
+  font-weight: 500;
+  font-size: 12px;
+}
+.song-looper__mix-ctrls {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.song-looper__mix-btn {
+  min-width: 40px;
+  text-align: center;
+  padding: 6px 8px;
+}
+.song-looper__mix-btn.is-muted {
+  background: color-mix(in srgb, var(--danger) 22%, var(--bg-elev-2));
+  border-color: var(--danger);
+  color: var(--text);
+}
+.song-looper__mix-btn.is-solo {
+  background: var(--accent-2);
+  border-color: var(--accent-2);
+  color: #14100a;
+}
+
+/* Transport */
+.song-looper__transport {
+  align-items: flex-end;
+  gap: 12px;
+}
+.song-looper__speed {
+  flex: 1;
+  min-width: 160px;
+}
+
+/* Section builder */
+.song-looper__builder {
+  align-items: flex-end;
+  gap: 10px;
+}
+.song-looper__bar {
+  width: 92px;
+}
+.song-looper__bar input {
+  width: 100%;
+}
+.song-looper__name {
+  flex: 1;
+  min-width: 160px;
+}
+.song-looper__add {
+  flex-shrink: 0;
+}
+
+/* Saved sections */
+.song-looper__section.is-looping {
+  border-color: var(--accent-2);
+  box-shadow: inset 0 0 0 1px var(--accent-2);
+}
+.song-looper__section-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.song-looper__section-name {
+  font-weight: 600;
+}
+.song-looper__section-actions {
+  flex-shrink: 0;
+  gap: 8px;
+}
+
+@media (max-width: 680px) {
+  .song-looper__builder {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .song-looper__bar,
+  .song-looper__name,
+  .song-looper__speed {
+    width: 100%;
+  }
+}

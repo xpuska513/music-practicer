@@ -1,0 +1,30 @@
+/* AlphaTab renders notation as dark glyphs, so give it a "paper" surface to sit
+   on rather than the app's dark theme. Scrolls internally; the player cursor
+   follows via settings.player.scrollElement = the viewport. */
+.atv-viewport {
+  max-height: 58vh;
+  min-height: 220px;
+  overflow: auto;
+  background: #f7f6f3;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  -webkit-overflow-scrolling: touch;
+}
+
+.atv-main {
+  color: #17181c;
+  padding: 6px 10px;
+}
+
+/* alphaTab's selection/cursor overlays render inside; keep them above content. */
+.atv-main .at-cursor-bar {
+  background: rgba(88, 166, 255, 0.16);
+}
+.atv-main .at-cursor-beat {
+  background: rgba(245, 166, 35, 0.75);
+  width: 2px;
+}
+.atv-main .at-highlight * {
+  fill: #2049b8;
+  stroke: #2049b8;
+}

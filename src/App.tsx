@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import ChordTrainer from './features/ChordTrainer'
 import ScaleExplorer from './features/ScaleExplorer'
 import Metronome from './components/Metronome'
@@ -12,9 +12,12 @@ import { useTuning } from './theory/useTuning'
 import { TUNINGS, BASS_TUNING } from './theory/tuning'
 import { BASS_TECHNIQUES } from './theory/bassTechniques'
 
+// The Songs looper pulls in alphaTab (a few MB), so load it only when opened.
+const SongLooper = lazy(() => import('./features/SongLooper'))
+
 type GuitarStatus = 'loading' | 'ready' | 'fallback'
 
-type Section = 'guitar' | 'bass' | 'drums'
+type Section = 'guitar' | 'bass' | 'drums' | 'songs'
 type GuitarTab = 'chords' | 'scales' | 'metronome' | 'technique' | 'tuner' | 'editor'
 type BassTab = 'scales' | 'technique' | 'tuner' | 'metronome'
 type DrumTab = 'beat' | 'metronome'
@@ -41,7 +44,7 @@ const DRUM_TABS: { id: DrumTab; label: string }[] = [
 ]
 
 const isSection = (v: unknown): v is Section =>
-  v === 'guitar' || v === 'bass' || v === 'drums'
+  v === 'guitar' || v === 'bass' || v === 'drums' || v === 'songs'
 const isGuitarTab = (v: unknown): v is GuitarTab =>
   GUITAR_TABS.some((t) => t.id === v)
 const isBassTab = (v: unknown): v is BassTab => BASS_TABS.some((t) => t.id === v)
@@ -87,8 +90,15 @@ export default function App() {
 
   const isGuitar = section === 'guitar'
   const isBass = section === 'bass'
-  const tabs = isGuitar ? GUITAR_TABS : isBass ? BASS_TABS : DRUM_TABS
-  const activeTab = isGuitar ? guitarTab : isBass ? bassTab : drumTab
+  const isDrums = section === 'drums'
+  const tabs = isGuitar
+    ? GUITAR_TABS
+    : isBass
+      ? BASS_TABS
+      : isDrums
+        ? DRUM_TABS
+        : []
+  const activeTab = isGuitar ? guitarTab : isBass ? bassTab : isDrums ? drumTab : ''
   const setTab = (id: GuitarTab | BassTab | DrumTab) => {
     if (isGuitar) {
       if (isGuitarTab(id)) setGuitarTab(id)
@@ -141,6 +151,14 @@ export default function App() {
           >
             🥁 Drums
           </button>
+          <button
+            type="button"
+            className="chip"
+            aria-pressed={section === 'songs'}
+            onClick={() => setSection('songs')}
+          >
+            🎼 Songs
+          </button>
         </div>
 
         {isGuitar ? (
@@ -159,19 +177,21 @@ export default function App() {
           </select>
         ) : null}
 
-        <nav className="tabbar" role="tablist" aria-label="Practice modes">
-          {tabs.map((t) => (
-            <button
-              key={t.id}
-              className="tab"
-              role="tab"
-              aria-selected={activeTab === t.id}
-              onClick={() => setTab(t.id)}
-            >
-              {t.label}
-            </button>
-          ))}
-        </nav>
+        {tabs.length > 0 ? (
+          <nav className="tabbar" role="tablist" aria-label="Practice modes">
+            {tabs.map((t) => (
+              <button
+                key={t.id}
+                className="tab"
+                role="tab"
+                aria-selected={activeTab === t.id}
+                onClick={() => setTab(t.id)}
+              >
+                {t.label}
+              </button>
+            ))}
+          </nav>
+        ) : null}
       </header>
 
       <main className="app-main">
@@ -194,8 +214,12 @@ export default function App() {
             )}
             {bassTab === 'tuner' && <Tuner tuning={BASS_TUNING} />}
           </>
-        ) : (
+        ) : isDrums ? (
           <>{drumTab === 'beat' && <DrumEditor />}</>
+        ) : (
+          <Suspense fallback={<p className="muted" style={{ padding: 16 }}>Loading the song player…</p>}>
+            <SongLooper />
+          </Suspense>
         )}
       </main>
     </div>

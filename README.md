@@ -11,9 +11,9 @@ backend — everything runs in your browser. Builds to plain static files you ca
 host anywhere (or open from disk). The only network use is fetching the guitar
 sound samples on first play (see Audio below); everything else works offline.
 
-A 🎸 **Guitar** / 𝄢 **Bass** / 🥁 **Drums** switch in the header swaps between
-the three toolsets (it remembers your section + last tab; the Metronome is
-shared).
+A 🎸 **Guitar** / 𝄢 **Bass** / 🥁 **Drums** / 🎼 **Songs** switch in the header
+swaps between the toolsets (it remembers your section + last tab; the Metronome
+is shared).
 
 ### 🎸 Guitar tools
 
@@ -61,6 +61,20 @@ strings) with its own neck and tuning — independent of the guitar header tunin
   (auto-detect or lock a string, cents meter), reaching down to the low E.
 - **⏱ Metronome** — the same shared metronome.
 
+### 🎼 Songs tools
+
+- **🎼 Song looper** — import a **Guitar Pro** file (`.gp` / `.gp3-5` / `.gpx`,
+  e.g. exported from Songsterr) and it renders as real tab/notation with full
+  synth playback of the whole band. A per-track **mixer** lets you choose which
+  track's tab is shown and **mute / solo** any instrument — so you can watch the
+  guitar tab, mute the guitar, and play along to just bass + drums. Toggle a
+  **metronome** click, and adjust playback **speed** (25–125%). Mark **sections**
+  by bar range (or jump straight from a song's Intro/Chorus markers), save them,
+  and **loop** any section to drill it. Imported files are kept in your browser
+  (IndexedDB) so they reload next time; sections persist in `localStorage`.
+  Rendering + playback are powered by [alphaTab](https://alphatab.net); the tab
+  is loaded on demand so it never weighs down the rest of the app.
+
 ### 🥁 Drums tools
 
 - **🥁 Beat Editor** — sketch a beat on a touch **grid** (kick / snare / hi-hat /
@@ -88,6 +102,12 @@ the browser. Until they finish loading — or if you're offline — playback fal
 back automatically to a hand-rolled **Karplus-Strong** synth (zero dependencies,
 fully offline), so there's never a silent first click. The metronome click is
 always synthesized locally.
+
+Song playback (the 🎼 Songs looper) uses **alphaTab**'s built-in synthesizer
+with a bundled SONiVOX soundfont (~1 MB). Unlike the guitar samples, that
+soundfont and alphaTab's Bravura music font are **self-hosted** (served straight
+from the build, not a CDN), so the Songs feature works offline once the app is
+loaded.
 
 ## Run it
 
@@ -122,8 +142,14 @@ This project deliberately uses **only first-party / reputable packages**:
 | `@types/react`, `@types/react-dom` | DefinitelyTyped | React types |
 | `smplr` | danigb (author of `tonal`) | guitar soundfont playback — **zero runtime dependencies** |
 | `pitchy` | ianprime0509 | tuner pitch detection (McLeod Pitch Method); 1 tiny dep (`fft.js`) |
+| `@coderline/alphatab` | CoderLine (Daniel Kuschny) | reads/renders/plays Guitar Pro files for the Songs looper (MPL-2.0). The only reputable in-browser GP engine; largely self-contained (ships its own engine + fonts) rather than pulling a tree of small parsers |
+| `@coderline/alphatab-vite` | CoderLine | the official Vite plugin that wires alphaTab's web workers/audio worklets (dev dependency) |
 
-No obscure utility packages, no analytics, no telemetry.
+No obscure utility packages, no analytics, no telemetry. alphaTab is the one
+larger dependency — a deliberate trade-off, since parsing Guitar Pro binaries by
+hand isn't realistic and a random small `gp5-parser` would be the exact
+supply-chain risk we're avoiding. It's lazy-loaded, so it only reaches the
+browser when you open the Songs tab.
 
 - **pnpm blocks dependency build scripts by default** (the main supply-chain
   vector — malicious `postinstall` scripts). Only packages explicitly listed in
@@ -165,6 +191,10 @@ src/
     useTuner.ts            mic + pitch-detection hook (pitchy)
     drumKit.ts             synthesized drum voices (Web Audio)
     useDrumSequencer.ts    step-sequencer playback hook (+ playhead)
+  songs/
+    songStore.ts           IndexedDB store for imported Guitar Pro files + hook
+    useSongSections.ts      localStorage store for saved loop sections
+    AlphaTabViewer.tsx      alphaTab wrapper: render track + player (loop/mute/solo/metronome)
   lib/
     usePersistentState.ts  validated localStorage-backed useState
   components/
@@ -182,7 +212,8 @@ src/
     ScaleEditor.tsx        build + save custom scales
     Editor.tsx             wrapper hosting both editors
     DrumEditor.tsx         beat editor (grid ⇄ notation) + playback + save
-  App.tsx                  🎸/𝄢/🥁 section switch + per-section tab shell
+    SongLooper.tsx         Guitar Pro import + track picker + section looper
+  App.tsx                  🎸/𝄢/🥁/🎼 section switch + per-section tab shell
   index.css                design tokens + shared UI classes
 ```
 
