@@ -104,10 +104,13 @@ fully offline), so there's never a silent first click. The metronome click is
 always synthesized locally.
 
 Song playback (the 🎼 Songs looper) uses **alphaTab**'s built-in synthesizer
-with a bundled SONiVOX soundfont (~1 MB). Unlike the guitar samples, that
-soundfont and alphaTab's Bravura music font are **self-hosted** (served straight
-from the build, not a CDN), so the Songs feature works offline once the app is
-loaded.
+with the **FluidR3 GM** soundfont (a real recorded General MIDI set by Frank Wen
+/ Michael Cowgill, MIT-licensed — see `src/songs/assets/FluidR3Mono_License.md`)
+so the whole band sounds like real instruments rather than plain MIDI. It's
+~14 MB, but **self-hosted** (served from the build, not a CDN) and lazy-loaded
+with the Songs page — fetched on first playback, then cached, so it works
+offline afterwards. alphaTab's Bravura music font is self-hosted the same way.
+(The first play after opening Songs takes a moment while that soundfont loads.)
 
 ## Run it
 
@@ -195,6 +198,7 @@ src/
     songStore.ts           IndexedDB store for imported Guitar Pro files + hook
     useSongSections.ts      localStorage store for saved loop sections
     AlphaTabViewer.tsx      alphaTab wrapper: render track + player (loop/mute/solo/metronome)
+    assets/FluidR3Mono_GM.sf3  FluidR3 GM soundfont for song playback (MIT, self-hosted)
   lib/
     usePersistentState.ts  validated localStorage-backed useState
   components/

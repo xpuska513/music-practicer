@@ -7,7 +7,10 @@ import {
 import * as alphaTab from '@coderline/alphatab'
 // Load Bravura + the soundfont through Vite's asset pipeline so the URLs stay
 // correct under `base: './'` (the alphaTab-vite plugin only wires the workers).
-import soundFontUrl from '@coderline/alphatab/soundfont/sonivox.sf3?url'
+// FluidR3 GM (a real recorded General MIDI soundfont, MIT-licensed) instead of
+// alphaTab's tiny default SONiVOX, so full-band playback sounds far less "MIDI".
+// It's ~14 MB but lazy-loaded with this (already lazy) viewer, then cached.
+import soundFontUrl from './assets/FluidR3Mono_GM.sf3?url'
 import bravuraWoff2 from '@coderline/alphatab/font/Bravura.woff2?url'
 import bravuraWoff from '@coderline/alphatab/font/Bravura.woff?url'
 import './AlphaTabViewer.css'
