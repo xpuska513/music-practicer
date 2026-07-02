@@ -44,6 +44,9 @@ is shared).
   (anywhere on the neck, optional finger numbers) and **custom scales** by
   clicking notes against a root, with live preview + playback. Saved to
   `localStorage`, and they appear in the Trainer / Explorer next to the built-ins.
+  **Share** a chord (or your whole set) as a link or copy-paste code — opening
+  the link imports it into someone else's app. It's all encoded in the URL
+  fragment, so nothing is ever sent to a server (no account, no backend).
 
 ### 𝄢 Bass tools
 
@@ -183,6 +186,7 @@ src/
     useCustomScales.ts     React hook syncing custom scales across views
     customChords.ts        load/save user chords to localStorage
     useCustomChords.ts     React hook syncing custom chords across views
+    chordShare.ts          encode/decode custom chords to a share link/code (no backend)
     tuning.ts              tuning model + 6/7/8-string + 4-string bass presets
     useTuning.tsx          global tuning context (persisted)
     drums.ts               drum voices + pattern model + preset grooves
@@ -215,6 +219,7 @@ src/
     ChordEditor.tsx        build + save custom chords (anywhere on the neck)
     ScaleEditor.tsx        build + save custom scales
     Editor.tsx             wrapper hosting both editors
+    ImportChords.tsx       import shared chords from a link/code (+ URL auto-detect)
     DrumEditor.tsx         beat editor (grid ⇄ notation) + playback + save
     SongLooper.tsx         Guitar Pro import + track picker + section looper
   App.tsx                  🎸/𝄢/🥁/🎼 section switch + per-section tab shell

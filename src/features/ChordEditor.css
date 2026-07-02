@@ -154,5 +154,65 @@
 }
 
 .chord-editor__list-actions {
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+/* ── Sharing ─────────────────────────────────────────────────────────────── */
+.chord-editor__list-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.chord-editor__list-head h2 {
+  margin: 0;
+}
+
+.chord-editor__share {
+  background: var(--bg-elev-2);
+  border: 1px solid var(--accent);
+  border-radius: var(--r-md);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.chord-editor__share-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.chord-editor__share-close {
+  appearance: none;
+  border: none;
+  background: none;
+  color: var(--text-dim);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+}
+.chord-editor__share-hint {
+  margin: 0;
+  font-size: 12px;
+}
+.chord-editor__share-row {
+  display: flex;
+  gap: 8px;
+}
+.chord-editor__share-input {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+}
+.chord-editor__share-copy {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+@media (max-width: 680px) {
+  .chord-editor__share-row {
+    flex-direction: column;
+  }
 }

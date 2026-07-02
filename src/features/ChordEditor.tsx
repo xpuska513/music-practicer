@@ -6,7 +6,10 @@ import { fitShape } from '../theory/chords'
 import { stringLabels } from '../theory/tuning'
 import Fretboard from '../components/Fretboard'
 import { chordMidis, playChord, resumeAudio, standardMidisForCount } from '../audio/synth'
-import type { ChordShape, NoteName, FretMark } from '../types'
+import { chordToShared, encodeChords, buildShareLink } from '../theory/chordShare'
+import type { SharedChord } from '../theory/chordShare'
+import ImportChords from './ImportChords'
+import type { ChordDef, ChordShape, NoteName, FretMark } from '../types'
 import './ChordEditor.css'
 
 /** A fresh all-muted shape array for an n-string guitar. */
@@ -44,6 +47,11 @@ export default function ChordEditor() {
   const [startFret, setStartFret] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [confirmation, setConfirmation] = useState<string | null>(null)
+  // Active share output (a single chord or the whole set) + copy feedback.
+  const [shareInfo, setShareInfo] = useState<{ label: string; token: string } | null>(
+    null,
+  )
+  const [copied, setCopied] = useState<'link' | 'code' | null>(null)
 
   // Re-size / reset the shape when the global tuning's string count changes.
   useEffect(() => {
@@ -195,6 +203,47 @@ export default function ChordEditor() {
   const handleDelete = (id: string) => {
     removeChord(id)
     if (editingId === id) resetForm()
+  }
+
+  // ── Sharing ───────────────────────────────────────────────────────────────
+  const shareChord = (chord: ChordDef) => {
+    setShareInfo({ label: chord.name, token: encodeChords([chordToShared(chord)]) })
+    setCopied(null)
+  }
+
+  const shareAll = () => {
+    const n = customChords.length
+    setShareInfo({
+      label: `all ${n} chord${n === 1 ? '' : 's'}`,
+      token: encodeChords(customChords.map(chordToShared)),
+    })
+    setCopied(null)
+  }
+
+  const copyShare = async (which: 'link' | 'code') => {
+    if (!shareInfo) return
+    const text =
+      which === 'link' ? buildShareLink(shareInfo.token) : shareInfo.token
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopied(which)
+      window.setTimeout(() => setCopied(null), 1500)
+    } catch {
+      // Clipboard blocked — the value is selectable in the field as a fallback.
+      setCopied(null)
+    }
+  }
+
+  const handleImportChords = (chords: SharedChord[]): number => {
+    chords.forEach((c) =>
+      addChord({
+        name: c.name,
+        root: c.root,
+        quality: c.quality || undefined,
+        shape: c.shape,
+      }),
+    )
+    return chords.length
   }
 
   const handleHearChord = (chordFrets: (number | null)[]) => {
@@ -424,7 +473,66 @@ export default function ChordEditor() {
 
       {/* ── Saved custom chords ────────────────────────────────────────── */}
       <div className="panel col">
-        <h2>Your custom chords</h2>
+        <div className="chord-editor__list-head">
+          <h2>Your custom chords</h2>
+          {customChords.length > 0 ? (
+            <button type="button" className="btn" onClick={shareAll}>
+              Share all
+            </button>
+          ) : null}
+        </div>
+
+        {shareInfo ? (
+          <div className="chord-editor__share">
+            <div className="chord-editor__share-head">
+              <span className="muted">Share {shareInfo.label}</span>
+              <button
+                type="button"
+                className="chord-editor__share-close"
+                onClick={() => setShareInfo(null)}
+                aria-label="Close share"
+              >
+                ×
+              </button>
+            </div>
+            <p className="muted chord-editor__share-hint">
+              Send the link — opening it adds the chord{shareInfo.label.startsWith('all') ? 's' : ''} to
+              their app. The code is the same thing to copy-paste if a link gets
+              mangled.
+            </p>
+            <div className="chord-editor__share-row">
+              <input
+                readOnly
+                className="mono chord-editor__share-input"
+                value={buildShareLink(shareInfo.token)}
+                onFocus={(e) => e.target.select()}
+              />
+              <button
+                type="button"
+                className="btn btn-primary chord-editor__share-copy"
+                onClick={() => copyShare('link')}
+              >
+                {copied === 'link' ? 'Copied!' : 'Copy link'}
+              </button>
+            </div>
+            <div className="chord-editor__share-row">
+              <input
+                readOnly
+                className="mono chord-editor__share-input"
+                value={shareInfo.token}
+                onFocus={(e) => e.target.select()}
+              />
+              <button
+                type="button"
+                className="btn chord-editor__share-copy"
+                onClick={() => copyShare('code')}
+              >
+                {copied === 'code' ? 'Copied!' : 'Copy code'}
+              </button>
+            </div>
+          </div>
+        ) : null}
+
         {customChords.length === 0 ? (
           <p className="muted">
             No custom chords yet. Tap a shape on the board above and hit Save to
@@ -460,6 +568,13 @@ export default function ChordEditor() {
                   <button
                     type="button"
                     className="btn"
+                    onClick={() => shareChord(chord)}
+                  >
+                    Share
+                  </button>
+                  <button
+                    type="button"
+                    className="btn"
                     onClick={() => handleDelete(chord.id)}
                   >
                     Delete
@@ -470,6 +585,8 @@ export default function ChordEditor() {
           </ul>
         )}
       </div>
+
+      <ImportChords onImport={handleImportChords} />
     </div>
   )
 }

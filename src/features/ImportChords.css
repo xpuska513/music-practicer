@@ -1,0 +1,33 @@
+.import-chords__input {
+  width: 100%;
+  resize: vertical;
+  font-family: var(--mono);
+  font-size: 13px;
+  word-break: break-all;
+}
+
+.import-chords__preview {
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 12px;
+}
+.import-chords__preview-title {
+  margin: 0 0 8px;
+  font-weight: 600;
+}
+.import-chords__list {
+  margin: 0 0 12px;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.import-chords__name {
+  font-weight: 600;
+}
+.import-chords__msg {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-dim);
+}

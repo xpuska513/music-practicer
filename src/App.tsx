@@ -11,6 +11,7 @@ import { preloadGuitar, isGuitarReady } from './audio/synth'
 import { useTuning } from './theory/useTuning'
 import { TUNINGS, BASS_TUNING } from './theory/tuning'
 import { BASS_TECHNIQUES } from './theory/bassTechniques'
+import { readShareHash } from './theory/chordShare'
 
 // The Songs looper pulls in alphaTab (a few MB), so load it only when opened.
 const SongLooper = lazy(() => import('./features/SongLooper'))
@@ -86,6 +87,16 @@ export default function App() {
     return () => {
       alive = false
     }
+  }, [])
+
+  // If the app was opened from a chord share link (#chords=…), jump to the
+  // Editor so the import prompt (in ChordEditor) is visible.
+  useEffect(() => {
+    if (readShareHash()) {
+      setSection('guitar')
+      setGuitarTab('editor')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const isGuitar = section === 'guitar'
