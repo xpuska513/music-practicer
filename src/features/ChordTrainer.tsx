@@ -210,7 +210,9 @@ export default function ChordTrainer() {
   const strumRef = useRef(strumStyle)
   const loopRef = useRef(loop)
   const phaseRef = useRef<Phase>(phase)
+  const bpmRef = useRef(bpm)
 
+  bpmRef.current = bpm
   poolRef.current = pool
   progressionChordsRef.current = progressionChords
   measuresPerChordRef.current = measuresPerChord
@@ -228,13 +230,20 @@ export default function ChordTrainer() {
     progIndexRef.current = 0
   }, [progressionId])
 
-  /** Strum a chord in a given direction, honouring the current style's spread. */
-  const strum = useCallback((chord: ChordDef | null, direction: 'down' | 'up') => {
-    if (!chord || !autoPlayRef.current) return
-    resumeAudio()
-    const spread = strumRef.current === 'arp' ? ARP_SPREAD : STRUM_SPREAD
-    playChord(chordToMidis(chord), { direction, strum: spread })
-  }, [])
+  /**
+   * Strum a chord in a given direction, honouring the current style's spread.
+   * `when` schedules it that many seconds ahead (used to place the off-beat
+   * up-strum for the per-beat eighth-note pattern).
+   */
+  const strum = useCallback(
+    (chord: ChordDef | null, direction: 'down' | 'up', when = 0) => {
+      if (!chord || !autoPlayRef.current) return
+      resumeAudio()
+      const spread = strumRef.current === 'arp' ? ARP_SPREAD : STRUM_SPREAD
+      playChord(chordToMidis(chord), { direction, strum: spread, when })
+    },
+    [],
+  )
 
   /** Strum once, picking the direction from the current style. */
   const strumOnce = useCallback(
@@ -321,10 +330,14 @@ export default function ChordTrainer() {
       }
     }
 
-    // 2) Per-beat strumming uses the now-current chord, so a new chord gets a
-    //    down-strum on its own downbeat (phaseRef is already 'playing' above).
+    // 2) Per-beat strumming plays straight eighths on the now-current chord: a
+    //    down-strum on the beat and an up-strum on the "&" (half a beat later),
+    //    so each quarter-note click carries a ↓↑ pair.
     if (newBeat && phaseRef.current === 'playing' && strumRef.current === 'beat') {
-      strum(currentChordRef.current, currentBeat % 2 === 0 ? 'down' : 'up')
+      const chord = currentChordRef.current
+      const halfBeat = 30 / bpmRef.current // (60 / bpm) / 2 seconds
+      strum(chord, 'down')
+      strum(chord, 'up', halfBeat)
     }
   }, [currentBeat, isPlaying, strum, strumOnce, advanceOrLoop])
 

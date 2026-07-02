@@ -294,19 +294,21 @@ export function playNote(
 /**
  * Play a strummed chord. Notes are offset by `strum` seconds each (use a larger
  * value to arpeggiate). `direction` "down" sounds low→high (default), "up"
- * sounds high→low.
+ * sounds high→low. `when` schedules the whole strum that many seconds ahead of
+ * now (e.g. to place an up-strum on the off-beat).
  */
 export function playChord(
   midis: number[],
-  opts?: { strum?: number; gain?: number; direction?: 'down' | 'up' },
+  opts?: { strum?: number; gain?: number; direction?: 'down' | 'up'; when?: number },
 ): void {
   const strum = opts?.strum ?? 0.035
   const gain = opts?.gain ?? 0.22 // modest per-note gain so stacks don't clip
   const direction = opts?.direction ?? 'down'
+  const when = Math.max(0, opts?.when ?? 0)
   const ac = tryGetCtx()
   if (!ac) return
   const sorted = [...midis].sort((a, b) => (direction === 'up' ? b - a : a - b))
-  const base = ac.currentTime
+  const base = ac.currentTime + when
   if (soundfontReady && soundfont) {
     const sf = soundfont
     sorted.forEach((midi, i) =>
@@ -315,7 +317,7 @@ export function playChord(
   } else {
     void ensureSoundfont()
     for (let i = 0; i < sorted.length; i++) {
-      synthNote(ac, sorted[i], i * strum, 1.5, gain)
+      synthNote(ac, sorted[i], when + i * strum, 1.5, gain)
     }
   }
 }
