@@ -102,7 +102,7 @@ h1, h2, h3 { margin: 0 0 0.4em; line-height: 1.2; }
 /* ---- Form controls ---- */
 .control { display: flex; flex-direction: column; gap: 6px; }
 .control > label { font-size: 13px; color: var(--text-dim); font-weight: 600; }
-select, input[type='number'], input[type='text'] {
+select, input[type='number'], input[type='text'], textarea {
   appearance: none;
   background: var(--bg-elev-2);
   color: var(--text);
@@ -141,10 +141,16 @@ input[type='range'] { width: 100%; accent-color: var(--accent); }
 .app-header {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 14px 16px;
+  flex-wrap: wrap;
+  gap: 10px 12px;
+  padding: 14px 16px 6px;
 }
-.app-title { font-size: 18px; font-weight: 800; letter-spacing: -0.02em; }
+.app-title {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
 .app-title .mark { color: var(--accent); }
 .app-sound-status {
   margin-left: 10px;
@@ -156,7 +162,7 @@ input[type='range'] { width: 100%; accent-color: var(--accent); }
 .app-tuning {
   padding: 6px 8px;
   font-size: 13px;
-  margin-left: 12px;
+  margin-left: auto;
 }
 .app-instrument {
   margin-left: 12px;
@@ -166,7 +172,9 @@ input[type='range'] { width: 100%; accent-color: var(--accent); }
   padding: 6px 12px;
 }
 
-.tabbar { display: flex; gap: 6px; margin-left: auto; }
+/* Practice-mode tabs get their own row under the brand + instrument switch
+   (on phones they become the fixed bottom bar, below). */
+.tabbar { display: flex; gap: 6px; flex-basis: 100%; flex-wrap: wrap; }
 .tab {
   border: 1px solid transparent;
   background: transparent;
@@ -176,6 +184,7 @@ input[type='range'] { width: 100%; accent-color: var(--accent); }
   cursor: pointer;
   font: inherit;
   font-weight: 700;
+  white-space: nowrap;
 }
 .tab[aria-selected='true'] {
   background: var(--bg-elev);
@@ -185,17 +194,28 @@ input[type='range'] { width: 100%; accent-color: var(--accent); }
 
 .app-main { flex: 1; padding: 8px 16px 24px; }
 
+.app--wide { max-width: 1440px; }
+
 .row { display: flex; gap: var(--gap); flex-wrap: wrap; }
 .col { display: flex; flex-direction: column; gap: var(--gap); }
 .muted { color: var(--text-dim); }
 .mono { font-family: var(--mono); }
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
 
 /* ---- Mobile ---- */
 @media (max-width: 680px) {
-  .app-header { flex-wrap: wrap; }
-  /* When the header wraps, drop the left margins so rows align to the edge. */
-  .app-instrument,
-  .app-tuning { margin-left: 0; }
+  /* Brand + tuning share the first row; the instrument switch gets its own. */
+  .app-title { order: 1; }
+  .app-tuning { order: 2; }
+  .app-instrument { order: 3; flex-basis: 100%; margin-left: 0; }
   .tabbar {
     position: fixed;
     bottom: 0;
