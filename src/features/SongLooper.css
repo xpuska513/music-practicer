@@ -287,6 +287,11 @@
   display: inline-flex;
   gap: 4px;
 }
+.songs-transport__unmute {
+  border-color: var(--accent-2);
+  color: var(--accent-2);
+  font-size: 13px;
+}
 
 /* ── Library ── */
 .songs-lib__list,
@@ -511,6 +516,25 @@
 }
 .loops__of {
   font-size: 13px;
+}
+
+/* ── Picking a bar to sync (banner over the score) ── */
+.songs-pick {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--accent-2);
+  border-radius: var(--r-md);
+  background: rgba(245, 166, 35, 0.12);
+  font-size: 14px;
+  font-weight: 600;
+}
+.songs-pick .btn {
+  padding: 6px 12px;
+  flex: none;
 }
 
 /* ── Video sync ── */

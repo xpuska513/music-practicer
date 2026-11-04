@@ -47,6 +47,16 @@ export interface SongExtras {
 
 export const DEFAULT_MIX: TrackMix = { volume: 1, muted: false, solo: false }
 
+/**
+ * Set bar `bar` to start at `ms`, replacing its old point and dropping any
+ * point that would now make the video run backwards against the score.
+ */
+export function withSyncPoint(points: SyncPoint[], bar: number, ms: number): SyncPoint[] {
+  const point = { bar, ms: Math.max(0, Math.round(ms)) }
+  const keep = points.filter((p) => p.bar !== bar && (p.bar < bar ? p.ms < point.ms : p.ms > point.ms))
+  return [...keep, point].sort((a, b) => a.bar - b.bar)
+}
+
 const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v)
 
 function parseSync(raw: unknown): SyncPoint[] {

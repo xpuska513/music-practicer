@@ -29,3 +29,10 @@
   fill: #2049b8;
   stroke: #2049b8;
 }
+
+/* Picking a bar to sync the video to: the whole score is a tap target. */
+.atv-viewport.is-picking {
+  cursor: crosshair;
+  outline: 3px solid var(--accent-2);
+  outline-offset: -3px;
+}

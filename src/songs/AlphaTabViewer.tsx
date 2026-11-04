@@ -23,6 +23,8 @@ export interface TrackInfo {
   /** GM program 32–39 → bass. */
   isBass: boolean
   isPercussion: boolean
+  /** First bar (1-based) where this track actually plays a note. */
+  firstBar: number
 }
 
 export interface ScoreInfo {
@@ -97,6 +99,8 @@ interface Props {
   onError: (message: string) => void
   /** 1-based bar under the cursor. */
   onBarChange?: (bar: number) => void
+  /** While set, a tap on the score reports its bar instead of seeking. */
+  onPickBar?: ((bar: number) => void) | null
 }
 
 /** A media jump bigger than this (ms) is a user seek, not playback. */
@@ -114,6 +118,7 @@ const AlphaTabViewer = forwardRef<AlphaTabHandle, Props>(function AlphaTabViewer
     onPlayingChange,
     onError,
     onBarChange,
+    onPickBar,
   },
   ref,
 ) {
@@ -130,6 +135,9 @@ const AlphaTabViewer = forwardRef<AlphaTabHandle, Props>(function AlphaTabViewer
   syncRef.current = syncPoints
   /** Metronome on? (video mode sounds it here; synth mode via alphaTab). */
   const clickOnRef = useRef(false)
+  /** alphaTab echoes our own re-seeks back through handler.seekTo — ignore
+   *  them until this time (performance.now()). */
+  const ignoreSeekRef = useRef(0)
   const clickLevelRef = useRef(1)
 
   // Keep the latest callbacks in a ref so the api is created exactly once.
@@ -158,7 +166,19 @@ const AlphaTabViewer = forwardRef<AlphaTabHandle, Props>(function AlphaTabViewer
       .map((p) => ({ barIndex: p.bar - 1, barOccurence: 0, barPosition: 0, millisecondOffset: p.ms }))
     if (points.length === 0) points.push({ barIndex: 0, barOccurence: 0, barPosition: 0, millisecondOffset: 0 })
     score.applyFlatSyncPoints(points)
-    if (reloadPlayer) api.updateSyncPoints()
+    if (!reloadPlayer) return
+    const media = mediaRef.current
+    const output = api.player?.output as alphaTab.synth.IExternalMediaSynthOutput | undefined
+    if (!media || !output) {
+      api.updateSyncPoints()
+      return
+    }
+    // Re-syncing keeps the video where it is and moves the cursor (alphaTab
+    // would otherwise keep the score position and jump the video).
+    ignoreSeekRef.current = performance.now() + 300
+    api.updateSyncPoints()
+    output.updatePosition(media.currentTimeMs())
+    api.timePosition = api.timePosition
   }
 
   // Create the alphaTab api once (the parent remounts us to switch source).
@@ -196,6 +216,10 @@ const AlphaTabViewer = forwardRef<AlphaTabHandle, Props>(function AlphaTabViewer
         name: t.name?.trim() || `Track ${t.index + 1}`,
         isBass: t.playbackInfo.program >= 32 && t.playbackInfo.program <= 39,
         isPercussion: t.isPercussion,
+        firstBar:
+          (t.staves[0]?.bars ?? []).findIndex((bar) =>
+            bar.voices.some((v) => v.beats.some((b) => !b.isRest && b.notes.length > 0)),
+          ) + 1 || 1,
       }))
       const markers: { bar: number; text: string }[] = []
       score.masterBars.forEach((mb, i) => {
@@ -240,8 +264,6 @@ const AlphaTabViewer = forwardRef<AlphaTabHandle, Props>(function AlphaTabViewer
       // The media position we last reported, and when (for jump detection).
       let lastMs = -1
       let lastAt = 0
-      // alphaTab echoes our own re-seek back through handler.seekTo — ignore it.
-      let ignoreSeekUntil = 0
       // Click scheduling: score ticks per ms of real time (smoothed), the tick
       // seen last frame, and the beat (tick) whose click is already queued.
       let ticksPerMs = 0
@@ -306,7 +328,7 @@ const AlphaTabViewer = forwardRef<AlphaTabHandle, Props>(function AlphaTabViewer
           // The video's own volume control stays in charge.
           masterVolume: 1,
           seekTo(time: number) {
-            if (performance.now() < ignoreSeekUntil) return
+            if (performance.now() < ignoreSeekRef.current) return
             mediaRef.current?.seekToMs(time)
             lastMs = time
             lastAt = performance.now()
@@ -332,7 +354,7 @@ const AlphaTabViewer = forwardRef<AlphaTabHandle, Props>(function AlphaTabViewer
               // re-seek alphaTab at that spot so its event queue restarts
               // cleanly instead of replaying/skipping a burst.
               output.updatePosition(t)
-              ignoreSeekUntil = now + 300
+              ignoreSeekRef.current = now + 300
               api.timePosition = api.timePosition
               prevTick = -1
               clicked = -1
@@ -364,9 +386,11 @@ const AlphaTabViewer = forwardRef<AlphaTabHandle, Props>(function AlphaTabViewer
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Keep alphaTab's play state in step with the video's own controls.
+  // Keep alphaTab's play state in step with the video's own controls. The
+  // speed may have been set before the video player was ready — hand it over.
   useEffect(() => {
     if (!isVideo || !media) return
+    if (apiRef.current) media.setRate(apiRef.current.playbackSpeed)
     return media.subscribe((playing) => {
       const api = apiRef.current
       if (!api) return
@@ -378,6 +402,42 @@ const AlphaTabViewer = forwardRef<AlphaTabHandle, Props>(function AlphaTabViewer
       else if (!playing && atPlaying) api.pause()
     })
   }, [isVideo, media])
+
+  // Bar picking (video sync): swallow taps before alphaTab sees them, so the
+  // score doesn't seek, and resolve which bar was tapped.
+  useEffect(() => {
+    const viewport = viewportRef.current
+    if (!viewport || !onPickBar) return
+    const swallow = (e: Event) => e.stopPropagation()
+    const pick = (e: MouseEvent) => {
+      e.stopPropagation()
+      const api = apiRef.current
+      const surface = mainRef.current?.querySelector('.at-surface')
+      const lookup = api?.boundsLookup
+      if (!surface || !lookup) return
+      const rect = surface.getBoundingClientRect()
+      const x = e.clientX - rect.left
+      const y = e.clientY - rect.top
+      let index = lookup.getBeatAtPos(x, y)?.voice.bar.masterBar.index ?? -1
+      if (index < 0) {
+        // Between notes: fall back to whichever bar's area holds the point.
+        for (const system of lookup.staffSystems) {
+          for (const bar of system.bars) {
+            const b = bar.lineAlignedBounds
+            if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) index = bar.index
+          }
+        }
+      }
+      if (index >= 0) onPickBar(index + 1)
+    }
+    const kinds = ['pointerdown', 'pointerup', 'mousedown', 'mouseup', 'touchstart', 'touchend'] as const
+    for (const k of kinds) viewport.addEventListener(k, swallow, true)
+    viewport.addEventListener('click', pick, true)
+    return () => {
+      for (const k of kinds) viewport.removeEventListener(k, swallow, true)
+      viewport.removeEventListener('click', pick, true)
+    }
+  }, [onPickBar])
 
   // Load the file bytes (once per mount; the parent keys this component by song
   // id, so a different song remounts with a fresh api).
@@ -468,7 +528,7 @@ const AlphaTabViewer = forwardRef<AlphaTabHandle, Props>(function AlphaTabViewer
   }))
 
   return (
-    <div className="atv-viewport" ref={viewportRef}>
+    <div className={'atv-viewport' + (onPickBar ? ' is-picking' : '')} ref={viewportRef}>
       <div className="atv-main" ref={mainRef} />
     </div>
   )
