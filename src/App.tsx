@@ -121,7 +121,7 @@ export default function App() {
   }
 
   return (
-    <div className="app">
+    <div className={section === 'songs' ? 'app app--wide' : 'app'}>
       <header className="app-header">
         <div className="app-title">
           <span className="mark">♪</span> Music Practicer
