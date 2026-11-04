@@ -4,13 +4,13 @@ import { useSongLibrary, getSongData } from '../songs/songStore'
 import type { SongMeta } from '../songs/songStore'
 import { useSongSections } from '../songs/useSongSections'
 import type { SongSection } from '../songs/useSongSections'
-import { DEFAULT_MIX, removeSongExtras, useSongExtras } from '../songs/useSongExtras'
+import { DEFAULT_MIX, removeSongExtras, useSongExtras, withSyncPoint } from '../songs/useSongExtras'
 import type { PlaybackSource, SongVideo, SyncPoint, TrackMix } from '../songs/useSongExtras'
 import AlphaTabViewer from '../songs/AlphaTabViewer'
 import type { AlphaTabHandle, ExternalMedia, ScoreInfo, TrackInfo } from '../songs/AlphaTabViewer'
 import VideoPane from '../songs/VideoPane'
 import { formatMs, parseYouTubeUrl } from '../songs/youtube'
-import { primeClick } from '../songs/click'
+import { clickReady, installClickUnlock, primeClick } from '../songs/click'
 import Sheet from '../components/Sheet'
 import { usePersistentState } from '../lib/usePersistentState'
 import { useMediaQuery } from '../lib/useMediaQuery'
@@ -87,7 +87,9 @@ function useFillHeight(
     const room = (el: HTMLElement | null) =>
       el ? window.innerHeight - (el.getBoundingClientRect().top + window.scrollY) - foot.offsetHeight - 12 : 0
     const fit = () => {
-      host.style.setProperty('--score-h', `${Math.max(260, Math.round(room(score.current)))}px`)
+      // Measure from the score itself (a banner may sit above it).
+      const viewport = score.current?.querySelector<HTMLElement>('.atv-viewport') ?? score.current
+      host.style.setProperty('--score-h', `${Math.max(260, Math.round(room(viewport)))}px`)
       if (side.current) host.style.setProperty('--side-h', `${Math.max(200, Math.round(room(side.current)))}px`)
     }
     fit()
@@ -143,6 +145,8 @@ export default function SongLooper() {
   const [loopNote, setLoopNote] = useState<string | null>(null)
   const [currentBar, setCurrentBar] = useState(1)
   const [sheet, setSheet] = useState<SheetId | null>(null)
+  /** Waiting for a tap on the score to sync that bar to the video's time. */
+  const [picking, setPicking] = useState(false)
   const [dragging, setDragging] = useState(false)
 
   const viewerRef = useRef<AlphaTabHandle>(null)
@@ -157,6 +161,12 @@ export default function SongLooper() {
     [songs, activeSongId],
   )
   useFillHeight(layoutRef, scoreRef, sideRef, transportRef, !!activeSong)
+  useEffect(() => installClickUnlock(), [])
+  // While the video plays with the click on, keep an eye on whether the
+  // browser actually lets it sound (iOS needs a tap first).
+  const watchClick = metronomeOn && playing && source === 'video'
+  useTicker(watchClick, 500)
+  const clickBlocked = watchClick && !clickReady()
 
   // Load the active song's bytes from IndexedDB whenever it changes.
   useEffect(() => {
@@ -400,6 +410,16 @@ export default function SongLooper() {
     />
   ) : null
 
+  const pickBar = useCallback(
+    (bar: number) => {
+      if (!video || !media) return
+      setSync(withSyncPoint(video.sync, bar, media.currentTimeMs()))
+      setPicking(false)
+    },
+    [video, media, setSync],
+  )
+  const viewingTrack = scoreInfo?.tracks.find((t) => t.index === trackIndex) ?? null
+
   const videoPanel = activeSong ? (
     <VideoSettings
       video={video}
@@ -408,6 +428,12 @@ export default function SongLooper() {
       error={videoError}
       barCount={scoreInfo?.barCount ?? 1}
       currentBar={currentBar}
+      track={viewingTrack}
+      picking={picking}
+      onPick={() => {
+        setPicking((p) => !p)
+        setSheet(null) // phones: get the sheet out of the way of the score
+      }}
       onAttach={(v) => {
         setVideoError(null)
         setMedia(null)
@@ -442,7 +468,6 @@ export default function SongLooper() {
   return (
     <div
       className={'songs' + (dragging ? ' is-dragging' : '')}
-      onPointerDown={primeClick}
       onDragOver={(e) => {
         if (!Array.from(e.dataTransfer.types).includes('Files')) return
         e.preventDefault()
@@ -521,6 +546,17 @@ export default function SongLooper() {
             ) : null}
 
             <div ref={scoreRef} className="songs-score">
+              {picking ? (
+                <div className="songs-pick" role="status">
+                  <span>
+                    Tap the bar the video is at — pause right on its first beat
+                    {media ? <span className="mono"> ({formatMs(media.currentTimeMs())})</span> : null}.
+                  </span>
+                  <button type="button" className="btn" onClick={() => setPicking(false)}>
+                    Cancel
+                  </button>
+                </div>
+              ) : null}
               {bytes ? (
                 <AlphaTabViewer
                   key={`${activeSong.id}:${source}`}
@@ -535,6 +571,7 @@ export default function SongLooper() {
                   onPlayingChange={setPlaying}
                   onError={setViewerError}
                   onBarChange={setCurrentBar}
+                  onPickBar={picking && source === 'video' && media ? pickBar : null}
                 />
               ) : (
                 <div className="songs-score__placeholder muted">{status || ' '}</div>
@@ -608,6 +645,11 @@ export default function SongLooper() {
             </div>
 
             <div className="songs-transport__group">
+              {clickBlocked ? (
+                <button type="button" className="btn songs-transport__unmute" onClick={primeClick}>
+                  🔇 Tap to enable the click
+                </button>
+              ) : null}
               {activeLoop ? (
                 <span className="songs-transport__loop">
                   ↺ {activeLoop.name}
@@ -996,6 +1038,9 @@ function VideoSettings({
   error,
   barCount,
   currentBar,
+  track,
+  picking,
+  onPick,
   onAttach,
   onRemove,
   onSync,
@@ -1007,6 +1052,10 @@ function VideoSettings({
   error: string | null
   barCount: number
   currentBar: number
+  /** The track whose tab is shown (to say where it starts playing). */
+  track: TrackInfo | null
+  picking: boolean
+  onPick: () => void
   onAttach: (video: SongVideo) => void
   onRemove: () => void
   onSync: (sync: SyncPoint[]) => void
@@ -1053,8 +1102,7 @@ function VideoSettings({
   const points = video.sync.length ? video.sync : [{ bar: 1, ms: 0 }]
   const nowMs = media ? media.currentTimeMs() : 0
   const targetBar = Math.min(Math.max(1, Number(bar) || currentBar), barCount)
-  const setPoint = (b: number, ms: number) =>
-    onSync([...points.filter((p) => p.bar !== b), { bar: b, ms: Math.max(0, Math.round(ms)) }])
+  const setPoint = (b: number, ms: number) => onSync(withSyncPoint(video.sync, b, ms))
 
   return (
     <div className="col vsync">
@@ -1069,9 +1117,24 @@ function VideoSettings({
       ) : (
         <>
           <p className="muted vsync__hint">
-            Sync: pause the video right on the first beat of a bar, then tap “starts now”. Add a
-            point further in if the tab drifts.
+            Sync: pause the video right on a hit you can hear, then tap that bar in the tab. Sync
+            where your part plays
+            {track && track.firstBar > 1 ? (
+              <>
+                {' '}— <strong>{track.name}</strong> starts in <strong>bar {track.firstBar}</strong>,
+                so bar 1 is silence for it
+              </>
+            ) : null}
+            . Add another point further in if it drifts.
           </p>
+          <button
+            type="button"
+            className={`btn ${picking ? '' : 'btn-primary'} vsync__pick`}
+            disabled={!media}
+            onClick={onPick}
+          >
+            {picking ? 'Cancel picking' : '🎯 Tap the bar in the tab'}
+          </button>
           <ul className="vsync__list">
             {points.map((p) => (
               <li key={p.bar} className="vsync__point">

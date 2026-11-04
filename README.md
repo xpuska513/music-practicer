@@ -81,9 +81,10 @@ strings) with its own neck and tuning — independent of the guitar header tunin
   markers), save them, and **loop** any section to drill it.
   - **▶ Play along to the real recording** — attach the song's **YouTube**
     video and the tab cursor follows the video (the click keeps time on top).
-    Sync it by pausing on the first beat of a bar and tapping "starts now";
-    nudge ±50 ms, or add more sync points if the recording drifts from the
-    tab. The video level is remembered per song.
+    Sync it by pausing the video on a hit you can hear and tapping that bar in
+    the tab (it tells you where your track first plays — e.g. a drum part that
+    enters in bar 5); nudge ±50 ms, or add more sync points if the recording
+    drifts from the tab. The video level is remembered per song.
   - Built for phones and tablets too: the score fills the screen above a
     sticky transport bar; the mixer, loops and video sync open as sheets on
     small screens and sit in a side column from 960 px wide.
