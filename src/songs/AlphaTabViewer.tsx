@@ -81,6 +81,9 @@ export interface AlphaTabHandle {
   setMetronome(on: boolean): void
   /** Click level, 0..1.5. */
   setClickVolume(volume: number): void
+  /** The bar (1-based) whose start is nearest the cursor — "the 1" a player
+   *  just heard, even if the tab runs a little early or late. */
+  nearestBar(): number | null
 }
 
 interface Props {
@@ -518,6 +521,17 @@ const AlphaTabViewer = forwardRef<AlphaTabHandle, Props>(function AlphaTabViewer
       clickOnRef.current = on
       const api = apiRef.current
       if (api && !isVideo) api.metronomeVolume = on ? clickLevelRef.current : 0
+    },
+    nearestBar(): number | null {
+      const api = apiRef.current
+      const bars = api?.tickCache?.masterBars
+      if (!api || !bars?.length) return null
+      const tick = api.tickPosition
+      const i = bars.findIndex((b) => tick >= b.start && tick < b.end)
+      if (i < 0) return tick < bars[0].start ? 1 : bars[bars.length - 1].masterBar.index + 1
+      const bar = bars[i]
+      const pick = tick - bar.start > (bar.end - bar.start) / 2 && bars[i + 1] ? bars[i + 1] : bar
+      return pick.masterBar.index + 1
     },
     setClickVolume(volume: number) {
       clickLevelRef.current = volume
