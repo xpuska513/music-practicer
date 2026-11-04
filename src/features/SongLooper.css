@@ -287,6 +287,11 @@
   display: inline-flex;
   gap: 4px;
 }
+.songs-transport__one {
+  min-width: 150px;
+  border-color: var(--accent-2);
+  font-variant-numeric: tabular-nums;
+}
 .songs-transport__unmute {
   border-color: var(--accent-2);
   color: var(--accent-2);

@@ -420,6 +420,22 @@ export default function SongLooper() {
   )
   const viewingTrack = scoreInfo?.tracks.find((t) => t.index === trackIndex) ?? null
 
+  // "Tap on the 1": while the video plays, lock the bar nearest the cursor to
+  // this moment — quick fixes for spots where the recording drifts from the tab.
+  const [syncNote, setSyncNote] = useState<string | null>(null)
+  useEffect(() => {
+    if (!syncNote) return
+    const id = setTimeout(() => setSyncNote(null), 2500)
+    return () => clearTimeout(id)
+  }, [syncNote])
+  const tapOnTheOne = useCallback(() => {
+    const bar = viewerRef.current?.nearestBar()
+    if (!video || !media || bar == null) return
+    const ms = media.currentTimeMs()
+    setSync(withSyncPoint(video.sync, bar, ms))
+    setSyncNote(`Bar ${bar} → ${formatMs(ms)}`)
+  }, [video, media, setSync])
+
   const videoPanel = activeSong ? (
     <VideoSettings
       video={video}
@@ -657,6 +673,16 @@ export default function SongLooper() {
                     ✕
                   </button>
                 </span>
+              ) : null}
+              {source === 'video' && media && playing ? (
+                <button
+                  type="button"
+                  className="btn songs-transport__one"
+                  onClick={tapOnTheOne}
+                  title="Tap exactly when you hear the first beat of a bar to lock that bar to the video"
+                >
+                  {syncNote ?? '⤓ Tap on the 1'}
+                </button>
               ) : null}
               {video ? (
                 <div className="songs-source" role="group" aria-label="Sound source">
@@ -1125,7 +1151,8 @@ function VideoSettings({
                 so bar 1 is silence for it
               </>
             ) : null}
-            . Add another point further in if it drifts.
+            . If it drifts later on, hit <strong>⤓ Tap on the 1</strong> (bottom bar) right on a
+            bar’s first beat while it plays — repeat wherever it slips.
           </p>
           <button
             type="button"
