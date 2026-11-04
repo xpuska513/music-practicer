@@ -45,6 +45,33 @@
   stroke-width: 2.5;
 }
 
+/* Scale playback: the sounding note glows; notes off the run's path fade. */
+.fretboard__mark {
+  transition: opacity 0.15s;
+}
+.fretboard__mark.is-dim {
+  opacity: 0.35;
+}
+.fretboard__glow {
+  fill: none;
+  stroke: var(--text);
+  stroke-width: 3;
+  opacity: 0.9;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: fretboard-ping 0.26s ease-out;
+}
+@keyframes fretboard-ping {
+  from {
+    transform: scale(0.7);
+    opacity: 0.3;
+  }
+  to {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+}
+
 /* Text inside dots + axis labels — never selectable. */
 .fretboard__label,
 .fretboard__fretnum,

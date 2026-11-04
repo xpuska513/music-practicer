@@ -56,6 +56,10 @@ export interface FretMark {
   isRoot?: boolean
   /** Optional explicit dot color (overrides default/root coloring). */
   color?: string
+  /** The note sounding right now — drawn with a glowing ring. */
+  active?: boolean
+  /** Faded back (e.g. off the path a scale run is playing). */
+  dim?: boolean
 }
 
 /**

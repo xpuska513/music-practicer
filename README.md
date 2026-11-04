@@ -28,7 +28,9 @@ is shared).
   set (~55 maj7 / m7 / add9 / sus / 6 / 9 / slash / dim voicings).
 - **🎼 Scale Explorer** — every popular scale/mode, transposable to any root
   (E thru E), drawn across the neck — **6-, 7- or 8-string** (follows the header
-  tuning). Toggle note names ↔ scale degrees, play the scale up and down.
+  tuning). Toggle note names ↔ scale degrees, play the scale up and down — each
+  note **lights up on the neck as it sounds**, following one playable hand
+  position (the rest of the neck fades back while it plays).
 - **🥁 Metronome** — accurate Web Audio metronome (lookahead scheduler), tap
   tempo, time signature, and **subdivisions** (8ths / triplets / 16ths) for a
   picking guide. Visual beat indicator.
@@ -193,6 +195,7 @@ src/
   theory/
     notes.ts               pitch-class math, note names, tuning, root options
     scales.ts              scale definitions + fretboard mark generation
+    scaleRun.ts            picks one playable position per note of a scale run
     chords.ts              chord library (shapes/fingerings) + render helper
     chordsJrock.ts         J-Rock chord set (maj7/m7/add9/sus/slash/…) — own filter
     chordsExtended.ts      native 7/8-string voicings (low B / F# power chords)
