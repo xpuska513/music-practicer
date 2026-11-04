@@ -9,7 +9,9 @@ At current state most of the code was written using AI, so do expect bad code qu
 A **client-side** guitar, bass + drums practice app. No server, no accounts, no
 backend — everything runs in your browser. Builds to plain static files you can
 host anywhere (or open from disk). The only network use is fetching the guitar
-sound samples on first play (see Audio below); everything else works offline.
+sound samples on first play (see Audio below) and — only if you attach a video
+to a song — YouTube's player (its official IFrame API, privacy-enhanced
+youtube-nocookie.com embed); everything else works offline.
 
 A 🎸 **Guitar** / 𝄢 **Bass** / 🥁 **Drums** / 🎼 **Songs** switch in the header
 swaps between the toolsets (it remembers your section + last tab; the Metronome
@@ -26,7 +28,9 @@ is shared).
   set (~55 maj7 / m7 / add9 / sus / 6 / 9 / slash / dim voicings).
 - **🎼 Scale Explorer** — every popular scale/mode, transposable to any root
   (E thru E), drawn across the neck — **6-, 7- or 8-string** (follows the header
-  tuning). Toggle note names ↔ scale degrees, play the scale up and down.
+  tuning). Toggle note names ↔ scale degrees, play the scale up and down — each
+  note **lights up on the neck as it sounds**, following one playable hand
+  position (the rest of the neck fades back while it plays).
 - **🥁 Metronome** — accurate Web Audio metronome (lookahead scheduler), tap
   tempo, time signature, and **subdivisions** (8ths / triplets / 16ths) for a
   picking guide. Visual beat indicator.
@@ -67,22 +71,37 @@ strings) with its own neck and tuning — independent of the guitar header tunin
 ### 🎼 Songs tools
 
 - **🎼 Song looper** — import a **Guitar Pro** file (`.gp` / `.gp3-5` / `.gpx`,
-  e.g. exported from Songsterr) and it renders as real tab/notation with full
-  synth playback of the whole band. A per-track **mixer** lets you choose which
-  track's tab is shown and **mute / solo** any instrument — so you can watch the
-  guitar tab, mute the guitar, and play along to just bass + drums. Toggle a
-  **metronome** click, and adjust playback **speed** (25–125%). Mark **sections**
-  by bar range (or jump straight from a song's Intro/Chorus markers), save them,
-  and **loop** any section to drill it. Imported files are kept in your browser
-  (IndexedDB) so they reload next time; sections persist in `localStorage`.
-  Rendering + playback are powered by [alphaTab](https://alphatab.net); the tab
-  is loaded on demand so it never weighs down the rest of the app.
+  e.g. exported from Songsterr — pick or drag & drop, several at once) and it
+  renders as real tab/notation with full synth playback of the whole band. A
+  **mixer** lets you choose which track's tab is shown and set each
+  instrument's **volume / mute / solo** — so you can watch the guitar tab, mute
+  the guitar, and play along to just bass + drums. Toggle a **metronome** click
+  (with its own level), and adjust playback **speed** (25–125%). Mark
+  **sections** by bar range (or jump straight from a song's Intro/Chorus
+  markers), save them, and **loop** any section to drill it.
+  - **▶ Play along to the real recording** — attach the song's **YouTube**
+    video and the tab cursor follows the video (the click keeps time on top).
+    Sync it by pausing on the first beat of a bar and tapping "starts now";
+    nudge ±50 ms, or add more sync points if the recording drifts from the
+    tab. The video level is remembered per song.
+  - Built for phones and tablets too: the score fills the screen above a
+    sticky transport bar; the mixer, loops and video sync open as sheets on
+    small screens and sit in a side column from 960 px wide.
+  - Imported files are kept in your browser (IndexedDB) so they reload next
+    time; sections, the mix and video sync persist in `localStorage`.
+    Rendering + playback are powered by [alphaTab](https://alphatab.net); the
+    tab is loaded on demand so it never weighs down the rest of the app.
 
 ### 🥁 Drums tools
 
-- **🥁 Beat Editor** — sketch a beat on a touch **grid** (kick / snare / hi-hat /
-  toms / cymbals × steps), or flip to a read-only **notation** view of the same
-  pattern; a playhead sweeps across on playback. Subdivision (8ths / triplets /
+- **🥁 Beat Editor** — sketch a beat on a touch **grid** across a 10-piece kit
+  (crash, ride, closed / open hi-hat and hi-hat foot, three toms, snare, kick),
+  or flip to engraved **drum notation** of the same pattern (standard drum key;
+  hands stems-up, feet stems-down; beamed per beat with real rests, dotted
+  values and triplets); a playhead sweeps across on playback. A **Dynamics**
+  brush paints each step as a normal hit, an **accent** or a quiet **ghost
+  note** — playback follows the dynamics, and the notation shows accents as
+  `>` marks and ghost notes in brackets. Beats saved before this still load. Subdivision (8ths / triplets /
   16ths), 1–2 bars, tempo, a synthesized kit (instant + offline), starter
   grooves, and save/load to `localStorage`.
 - **⏱ Metronome** — the same shared metronome.
@@ -176,6 +195,7 @@ src/
   theory/
     notes.ts               pitch-class math, note names, tuning, root options
     scales.ts              scale definitions + fretboard mark generation
+    scaleRun.ts            picks one playable position per note of a scale run
     chords.ts              chord library (shapes/fingerings) + render helper
     chordsJrock.ts         J-Rock chord set (maj7/m7/add9/sus/slash/…) — own filter
     chordsExtended.ts      native 7/8-string voicings (low B / F# power chords)
@@ -190,6 +210,7 @@ src/
     tuning.ts              tuning model + 6/7/8-string + 4-string bass presets
     useTuning.tsx          global tuning context (persisted)
     drums.ts               drum voices + pattern model + preset grooves
+    drumNotation.ts        spells a step pattern as two-voice drum notation (values, beams, rests)
     useDrumPatterns.ts     localStorage store for user drum patterns
   audio/
     useMetronome.ts        Web Audio lookahead scheduler (with subdivisions)
@@ -201,16 +222,23 @@ src/
   songs/
     songStore.ts           IndexedDB store for imported Guitar Pro files + hook
     useSongSections.ts      localStorage store for saved loop sections
-    AlphaTabViewer.tsx      alphaTab wrapper: render track + player (loop/mute/solo/metronome)
+    useSongExtras.ts        per-song extras: YouTube video + sync points, source, mixer, levels
+    AlphaTabViewer.tsx      alphaTab wrapper: render track + player (synth or video clock;
+                            loop/mute/solo/volume/metronome)
+    VideoPane.tsx           embedded YouTube player exposed as the score's media clock
+    youtube.ts              YouTube link parsing + lazy IFrame API loader
+    click.ts                metronome click for video playback (Web Audio)
     assets/FluidR3Mono_GM.sf3  FluidR3 GM soundfont for song playback (MIT, self-hosted)
   lib/
     usePersistentState.ts  validated localStorage-backed useState
+    useMediaQuery.ts       live matchMedia hook
   components/
     Fretboard.tsx          SVG fretboard, any string count (interactive, H & V)
     Metronome.tsx          standalone metronome panel
     DrumGrid.tsx           editable step grid (voices × steps)
-    DrumNotation.tsx       read-only drum-notation view (SVG)
+    DrumNotation.tsx       engraved drum notation (SVG + Bravura SMuFL glyphs) + playhead
     TechniqueMotion.tsx    animated, BPM-synced technique motion diagram (SVG)
+    Sheet.tsx              bottom sheet / dialog on native <dialog> (phones: slides up)
   features/
     ChordTrainer.tsx       the chord minigame
     ScaleExplorer.tsx      the scale visualizer (guitar or bass neck)
@@ -221,7 +249,7 @@ src/
     Editor.tsx             wrapper hosting both editors
     ImportChords.tsx       import shared chords from a link/code (+ URL auto-detect)
     DrumEditor.tsx         beat editor (grid ⇄ notation) + playback + save
-    SongLooper.tsx         Guitar Pro import + track picker + section looper
+    SongLooper.tsx         Songs page: library, score, mixer, loops, video sync, transport
   App.tsx                  🎸/𝄢/🥁/🎼 section switch + per-section tab shell
   index.css                design tokens + shared UI classes
 ```

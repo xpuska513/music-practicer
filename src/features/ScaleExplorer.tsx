@@ -1,5 +1,7 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { SCALES, getScaleMarks } from '../theory/scales'
+import { scaleRunPositions } from '../theory/scaleRun'
+import type { FretPos } from '../theory/scaleRun'
 import {
   ROOT_OPTIONS,
   pitchClassOf,
@@ -10,7 +12,14 @@ import Fretboard from '../components/Fretboard'
 import { useCustomScales } from '../theory/useCustomScales'
 import { useTuning } from '../theory/useTuning'
 import type { Tuning } from '../theory/tuning'
-import { scaleMidis, playSequence, resumeAudio, stopAll } from '../audio/synth'
+import {
+  audioNow,
+  playSequence,
+  resumeAudio,
+  scaleMidis,
+  scaleRootMidi,
+  stopAll,
+} from '../audio/synth'
 import { usePersistentState } from '../lib/usePersistentState'
 import type { FretMark, NoteName, ScaleDef } from '../types'
 import './ScaleExplorer.css'
@@ -81,13 +90,57 @@ function ScaleExplorer({ tuning: tuningProp }: { tuning?: Tuning } = {}) {
     [allScales, scaleId],
   )
 
+  // The run as played (up, then back down) and where each note sits on this
+  // neck — one hand position, so the lit dots trace a playable shape.
+  const run = useMemo(() => {
+    const open = tuning.strings
+    const rootMidi = scaleRootMidi(rootPc, {
+      low: Math.min(...open),
+      high: Math.max(...open) + FRET_COUNT,
+    })
+    const up = scaleMidis(rootPc, scale.intervals, { rootMidi })
+    const upPath = scaleRunPositions(up, open, FRET_COUNT)
+    return {
+      midis: [...up, ...up.slice(0, -1).reverse()],
+      path: [...upPath, ...upPath.slice(0, -1).reverse()],
+    }
+  }, [rootPc, scale, tuning])
+
+  // While a run plays: when it started (audio clock) and which note is sounding.
+  const [playback, setPlayback] = useState<{ start: number; step: number } | null>(null)
+  const [noteIndex, setNoteIndex] = useState(-1)
+
   /** Play the current scale up then back down. */
   const handlePlay = () => {
     resumeAudio()
-    const up = scaleMidis(rootPc, scale.intervals)
-    const updown = [...up, ...up.slice(0, -1).reverse()]
-    playSequence(updown)
+    stopAll()
+    setPlayback(playSequence(run.midis))
   }
+
+  const handleStop = () => {
+    stopAll()
+    setPlayback(null)
+  }
+
+  // Follow the audio clock to light the sounding note; a changed scale, root or
+  // tuning ends the highlight (the old path no longer applies).
+  useEffect(() => {
+    setNoteIndex(-1)
+    if (!playback) return
+    let raf = 0
+    const tick = () => {
+      const i = Math.floor((audioNow() - playback.start) / playback.step)
+      if (i >= run.midis.length) {
+        setPlayback(null)
+        return
+      }
+      setNoteIndex(i)
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [playback, run])
+  useEffect(() => setPlayback(null), [run])
 
   // Scale spelling: the note names in order from the root.
   const spelling = useMemo(
@@ -107,6 +160,18 @@ function ScaleExplorer({ tuning: tuningProp }: { tuning?: Tuning } = {}) {
       return { ...mark, label: degreeLabel(interval) }
     })
   }, [scale, rootPc, labelMode, tuningPcs])
+
+  // During playback: light the sounding note, fade what's off the run's path.
+  const shownMarks = useMemo<FretMark[]>(() => {
+    if (!playback) return marks
+    const onPath = (p: FretPos | null, m: FretMark) => !!p && p.string === m.string && p.fret === m.fret
+    const current = noteIndex >= 0 ? run.path[noteIndex] : null
+    return marks.map((m) => ({
+      ...m,
+      active: onPath(current, m),
+      dim: !run.path.some((p) => onPath(p, m)),
+    }))
+  }, [marks, playback, noteIndex, run])
 
   // Scales grouped under their category headings for the <select>.
   const grouped = useMemo(() => {
@@ -194,7 +259,7 @@ function ScaleExplorer({ tuning: tuningProp }: { tuning?: Tuning } = {}) {
               <button type="button" className="btn btn-primary" onClick={handlePlay}>
                 ▶ Play
               </button>
-              <button type="button" className="btn" onClick={stopAll}>
+              <button type="button" className="btn" onClick={handleStop}>
                 ■ Stop
               </button>
             </div>
@@ -220,7 +285,7 @@ function ScaleExplorer({ tuning: tuningProp }: { tuning?: Tuning } = {}) {
             startFret={0}
             fretCount={FRET_COUNT}
             stringCount={tuning.strings.length}
-            marks={marks}
+            marks={shownMarks}
             showLabels
           />
         </div>

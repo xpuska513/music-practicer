@@ -204,26 +204,25 @@ const Fretboard: React.FC<FretboardProps> = ({
     const across = acrossOffset(mark.string)
     const fill = mark.color ?? (mark.isRoot ? 'var(--dot-root)' : 'var(--dot)')
 
+    const state = mark.active ? ' is-active' : mark.dim ? ' is-dim' : ''
+
     if (absFret === 0) {
       // Open string: hollow ring sitting at the nut edge of that string.
       const along = alongOffset(startFret) - OPEN_R - 4
       const p = toXY(along, across)
       dots.push(
-        <circle
-          key={`mark-${i}`}
-          className="fretboard__dot-ring"
-          cx={p.x}
-          cy={p.y}
-          r={OPEN_R}
-          stroke={fill}
-        />,
+        <g key={`mark-${i}`} className={`fretboard__mark${state}`}>
+          {mark.active ? <circle className="fretboard__glow" cx={p.x} cy={p.y} r={OPEN_R + 5} /> : null}
+          <circle className="fretboard__dot-ring" cx={p.x} cy={p.y} r={OPEN_R} stroke={fill} />
+        </g>,
       )
     } else {
       // Fretted note: filled dot centered in its fret cell.
       const along = cellCenter(absFret)
       const p = toXY(along, across)
       dots.push(
-        <g key={`mark-${i}`}>
+        <g key={`mark-${i}`} className={`fretboard__mark${state}`}>
+          {mark.active ? <circle className="fretboard__glow" cx={p.x} cy={p.y} r={DOT_R + 5} /> : null}
           <circle cx={p.x} cy={p.y} r={DOT_R} fill={fill} />
           {showLabels && mark.label ? (
             <text className="fretboard__label" x={p.x} y={p.y} fontSize={11}>

@@ -1,8 +1,9 @@
 /* AlphaTab renders notation as dark glyphs, so give it a "paper" surface to sit
    on rather than the app's dark theme. Scrolls internally; the player cursor
-   follows via settings.player.scrollElement = the viewport. */
+   follows via settings.player.scrollElement = the viewport. The parent sets the
+   height (it fills the screen under the Songs chrome). */
 .atv-viewport {
-  max-height: 58vh;
+  height: 60vh;
   min-height: 220px;
   overflow: auto;
   background: #f7f6f3;

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { DRUM_VOICES, stepCount } from '../theory/drums'
+import { DRUM_VOICES, HIT_OFF, stepCount } from '../theory/drums'
 import type { DrumPattern } from '../theory/drums'
 import { triggerDrum } from './drumKit'
 
@@ -85,11 +85,11 @@ export default function useDrumSequencer(
       const step = stepRef.current
       const noteTime = nextNoteTimeRef.current
 
-      // 1) Sample-accurate audio for every voice that hits this step.
+      // 1) Sample-accurate audio for every voice that hits this step, at its
+      //    dynamic level (ghost / normal / accent).
       for (const voice of DRUM_VOICES) {
-        if (p.hits[voice.id][step]) {
-          triggerDrum(audioCtx, voice.id, noteTime)
-        }
+        const level = p.hits[voice.id][step]
+        if (level > HIT_OFF) triggerDrum(audioCtx, voice.id, noteTime, level)
       }
 
       // 2) UI playhead aligned with the audible hit. Tag with the current

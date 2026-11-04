@@ -33,6 +33,74 @@
   padding: 16px 12px;
 }
 
+/* Dynamics brush: what a tap on the grid paints. */
+.drum-editor__brush {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-bottom: 12px;
+}
+
+.drum-editor__brush-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-dim);
+}
+
+.drum-editor__brush-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 6px 14px;
+}
+
+/* Each chip's icon mirrors how that level looks in the grid. */
+.drum-editor__brush-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* Accent: the grid's wedge stacked over a bolder dot. */
+.drum-editor__brush-icon.is-accent {
+  flex-direction: column;
+  gap: 1px;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.drum-editor__brush-icon.is-accent svg {
+  width: 10px;
+  height: 7px;
+}
+
+.drum-editor__brush-icon.is-ghost {
+  font-size: 9px;
+  opacity: 0.75;
+}
+
+.drum-editor__brush-icon.is-ghost::before {
+  content: '(';
+  font-size: 11px;
+  margin-right: 1px;
+}
+
+.drum-editor__brush-icon.is-ghost::after {
+  content: ')';
+  font-size: 11px;
+  margin-left: 1px;
+}
+
+.drum-editor__brush-hint {
+  font-size: 13px;
+}
+
 .drum-editor__saved-title {
   margin: 0;
 }
@@ -71,4 +139,32 @@
 
 .drum-editor__list-actions {
   flex-wrap: nowrap;
+}
+
+/* Phones: give the grid / notation more of the width. */
+@media (max-width: 680px) {
+  .drum-editor__surface {
+    padding: 12px 8px;
+  }
+
+  .drum-editor__brush {
+    gap: 8px;
+    padding: 0 4px;
+  }
+
+  .drum-editor__brush-label,
+  .drum-editor__brush-hint {
+    flex-basis: 100%;
+  }
+
+  /* Three chips on one row at 390px. */
+  .drum-editor__brush .chip-row {
+    flex-wrap: nowrap;
+    gap: 6px;
+  }
+
+  .drum-editor__brush-chip {
+    gap: 4px;
+    padding: 6px 12px;
+  }
 }

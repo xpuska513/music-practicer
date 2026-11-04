@@ -5,66 +5,62 @@
   background: var(--bg-elev);
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
-  padding: 8px 4px;
+  padding: 10px 8px;
   user-select: none;
   -webkit-user-select: none;
 }
 
 .drum-notation__svg {
   display: block;
-  height: auto;
+  margin: 0 auto;
+  overflow: visible;
 }
 
-.drum-notation__staff-line {
-  stroke: var(--text);
-  stroke-width: 1;
-  opacity: 0.55;
-}
-
-.drum-notation__barline {
-  stroke: var(--text);
-  stroke-width: 2;
-  opacity: 0.7;
-}
-
-.drum-notation__beatline {
-  stroke: var(--text);
-  stroke-width: 1;
-  opacity: 0.18;
-}
-
-.drum-notation__sig {
-  fill: var(--text);
-  font-family: var(--font);
-  font-weight: 800;
-  font-size: 13px;
-  text-anchor: middle;
-  opacity: 0.85;
-}
-
-.drum-notation__stem {
-  stroke: var(--text);
-  stroke-width: 1.5;
-}
-
-.drum-notation__head-dot {
+/* SMuFL glyphs (clef, noteheads, rests, flags…) — Bravura via FontFace. */
+.drum-notation__glyph {
+  font-family: 'MP Bravura';
   fill: var(--text);
 }
 
-.drum-notation__head-open {
+.drum-notation__staff {
+  fill: var(--text);
+  opacity: 0.45;
+}
+
+/* Stems, beams, barlines, ledger lines, dots. */
+.drum-notation__line {
+  fill: var(--text);
+}
+
+.drum-notation__rest {
+  fill: var(--text);
+  opacity: 0.8;
+}
+
+.drum-notation__tuplet {
+  fill: var(--text-dim);
+}
+
+.drum-notation__open {
   fill: none;
   stroke: var(--text);
-  stroke-width: 1.75;
 }
 
-.drum-notation__head-x {
-  stroke: var(--text);
-  stroke-width: 2;
-  stroke-linecap: round;
+/* Notes under the playhead light up. */
+.drum-notation__note {
+  fill: var(--text);
+  transition: fill 0.08s;
+}
+.drum-notation__note.is-now {
+  fill: var(--accent);
 }
 
 .drum-notation__playhead {
-  stroke: var(--accent);
-  stroke-width: 2;
-  opacity: 0.9;
+  fill: var(--accent);
+  opacity: 0.16;
+}
+
+.drum-notation__fallback {
+  margin: 8px 4px 0;
+  font-size: 13px;
 }

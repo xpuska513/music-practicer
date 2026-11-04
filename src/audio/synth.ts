@@ -163,13 +163,24 @@ export function chordMidis(
  * Build ascending, sorted, unique scale MIDI notes from a root pitch class
  * and semitone intervals, spanning `octaves` (default 1) plus the top root.
  */
+/**
+ * Starting root for a scale run: C3-based as always, but dropped an octave at a
+ * time while the run would climb past `range.high` (e.g. on a 4-string bass),
+ * so every note exists on the neck being shown.
+ */
+export function scaleRootMidi(rootPc: number, range?: { low: number; high: number }): number {
+  let root = SCALE_ROOT_BASE + rootPc
+  if (range) while (root + 12 > range.high && root - 12 >= range.low) root -= 12
+  return root
+}
+
 export function scaleMidis(
   rootPc: number,
   intervals: number[],
-  opts?: { octaves?: number },
+  opts?: { octaves?: number; rootMidi?: number },
 ): number[] {
   const octaves = opts?.octaves ?? 1
-  const rootMidi = SCALE_ROOT_BASE + rootPc
+  const rootMidi = opts?.rootMidi ?? SCALE_ROOT_BASE + rootPc
   const set = new Set<number>()
   for (let o = 0; o < octaves; o++) {
     for (const interval of intervals) {
@@ -322,15 +333,23 @@ export function playChord(
   }
 }
 
-/** Play a sequence of notes, one per `step` seconds. */
+/** The audio clock (seconds) — what `playSequence`'s `start` is measured on. */
+export function audioNow(): number {
+  return tryGetCtx()?.currentTime ?? 0
+}
+
+/**
+ * Play a sequence of notes, one per `step` seconds. Returns when (audio clock)
+ * the first note sounds and the step, so callers can follow along visually.
+ */
 export function playSequence(
   midis: number[],
   opts?: { step?: number; gain?: number },
-): void {
+): { start: number; step: number } | null {
   const step = opts?.step ?? 0.26
   const gain = opts?.gain ?? 0.26
   const ac = tryGetCtx()
-  if (!ac) return
+  if (!ac) return null
   const base = ac.currentTime
   if (soundfontReady && soundfont) {
     const sf = soundfont
@@ -349,6 +368,7 @@ export function playSequence(
       synthNote(ac, midis[i], i * step, duration, gain)
     }
   }
+  return { start: base, step }
 }
 
 /** Stop everything currently sounding (both sampled and synth voices). */
