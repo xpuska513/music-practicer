@@ -1,15 +1,19 @@
 import { useState } from 'react'
 import {
   DRUM_PRESETS,
+  HIT_ACCENT,
+  HIT_GHOST,
+  HIT_NORMAL,
   emptyHits,
+  paintHit,
   resizeHits,
   stepCount,
 } from '../theory/drums'
-import type { DrumPattern, DrumVoiceId } from '../theory/drums'
+import type { DrumPattern, DrumVoiceId, HitLevel } from '../theory/drums'
 import { useDrumPatterns } from '../theory/useDrumPatterns'
 import { useDrumSequencer } from '../audio/useDrumSequencer'
 import { usePersistentState } from '../lib/usePersistentState'
-import DrumGrid from '../components/DrumGrid'
+import DrumGrid, { AccentMark } from '../components/DrumGrid'
 import DrumNotation from '../components/DrumNotation'
 import './DrumEditor.css'
 
@@ -28,6 +32,16 @@ const isView = (v: unknown): v is View => v === 'grid' || v === 'notation'
 const isBpm = (v: unknown): v is number =>
   typeof v === 'number' && v >= MIN_BPM && v <= MAX_BPM
 
+/** The dynamics "brush": the level a tap on the grid paints. */
+type Brush = Exclude<HitLevel, 0>
+const BRUSHES: { level: Brush; id: 'normal' | 'accent' | 'ghost'; label: string; title: string }[] = [
+  { level: HIT_NORMAL, id: 'normal', label: 'Normal', title: 'Normal hit' },
+  { level: HIT_ACCENT, id: 'accent', label: 'Accent', title: 'Accent: played louder' },
+  { level: HIT_GHOST, id: 'ghost', label: 'Ghost', title: 'Ghost note: a quiet tap' },
+]
+const isBrush = (v: unknown): v is Brush =>
+  v === HIT_NORMAL || v === HIT_ACCENT || v === HIT_GHOST
+
 /** A fresh draft seeded from the basic rock groove (hits deep-copied so the
  *  working pattern never aliases the shared preset arrays). */
 function draftPattern(): DrumPattern {
@@ -44,6 +58,7 @@ export default function DrumEditor() {
   const { patterns, addPattern, updatePattern, removePattern } = useDrumPatterns()
   const [view, setView] = usePersistentState<View>('drum:view', 'grid', isView)
   const [storedBpm, setStoredBpm] = usePersistentState<number>('drum:bpm', 90, isBpm)
+  const [brush, setBrush] = usePersistentState<Brush>('drum:brush', HIT_NORMAL, isBrush)
 
   const [pattern, setPattern] = useState<DrumPattern>(() => ({
     ...draftPattern(),
@@ -54,12 +69,14 @@ export default function DrumEditor() {
 
   const { isPlaying, currentStep, toggle, stop } = useDrumSequencer(pattern)
 
-  const toggleHit = (voice: DrumVoiceId, step: number) => {
+  /** Tap a grid cell with the current brush: an empty cell (or one at another
+   *  level) takes the brush's level; one already at that level clears. */
+  const paintStep = (voice: DrumVoiceId, step: number) => {
     setPattern((p) => ({
       ...p,
       hits: {
         ...p.hits,
-        [voice]: p.hits[voice].map((h, i) => (i === step ? !h : h)),
+        [voice]: p.hits[voice].map((h, i) => (i === step ? paintHit(h, brush) : h)),
       },
     }))
   }
@@ -259,7 +276,34 @@ export default function DrumEditor() {
       {/* ── Editor surface ───────────────────────────────────────────────── */}
       <section className="panel drum-editor__surface">
         {view === 'grid' ? (
-          <DrumGrid pattern={pattern} currentStep={currentStep} onToggle={toggleHit} />
+          <>
+            <div className="drum-editor__brush">
+              <span className="drum-editor__brush-label" id="drum-brush-label">
+                Dynamics
+              </span>
+              <div className="chip-row" role="group" aria-labelledby="drum-brush-label">
+                {BRUSHES.map((b) => (
+                  <button
+                    key={b.id}
+                    type="button"
+                    className="chip drum-editor__brush-chip"
+                    aria-pressed={brush === b.level}
+                    title={b.title}
+                    onClick={() => setBrush(b.level)}
+                  >
+                    <span className={`drum-editor__brush-icon is-${b.id}`} aria-hidden="true">
+                      {b.level === HIT_ACCENT ? <AccentMark /> : null}●
+                    </span>
+                    {b.label}
+                  </button>
+                ))}
+              </div>
+              <span className="muted drum-editor__brush-hint">
+                Tap a step to paint it, tap it again to clear.
+              </span>
+            </div>
+            <DrumGrid pattern={pattern} currentStep={currentStep} onTap={paintStep} />
+          </>
         ) : (
           <DrumNotation pattern={pattern} currentStep={currentStep} />
         )}

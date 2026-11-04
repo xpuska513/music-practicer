@@ -1,11 +1,15 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   DRUM_VOICES,
+  HIT_NORMAL,
+  HIT_OFF,
   SUBDIVISIONS,
+  isHitLevel,
   resizeHits,
   stepCount,
   type DrumPattern,
   type DrumVoiceId,
+  type HitLevel,
 } from './drums'
 
 /**
@@ -40,20 +44,37 @@ function isNumber(v: unknown): v is number {
 }
 
 /**
- * Validate a raw `hits` value into a complete per-voice map of boolean[].
- * Every DrumVoiceId must be present and map to an array of booleans.
+ * One stored cell → a HitLevel. Beats saved before dynamics existed hold
+ * booleans (on = a normal hit); newer ones hold levels 0..3. Anything else is
+ * invalid (null).
  */
-function parseHits(raw: unknown): Record<DrumVoiceId, boolean[]> | null {
-  if (typeof raw !== 'object' || raw === null) return null
+function parseCell(cell: unknown): HitLevel | null {
+  if (typeof cell === 'boolean') return cell ? HIT_NORMAL : HIT_OFF
+  return isHitLevel(cell) ? cell : null
+}
+
+/**
+ * Validate a raw `hits` value into a complete per-voice map of HitLevel[].
+ * A voice missing from the object (saves made before that voice existed) gets
+ * an empty row — `resizeHits` pads it to the grid — so adding voices never
+ * drops existing beats. A present row must be an array of valid cells.
+ */
+function parseHits(raw: unknown): Record<DrumVoiceId, HitLevel[]> | null {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return null
   const obj = raw as Record<string, unknown>
-  const out = {} as Record<DrumVoiceId, boolean[]>
+  const out = {} as Record<DrumVoiceId, HitLevel[]>
   for (const voice of DRUM_VOICES) {
     const row = obj[voice.id]
+    if (row === undefined) {
+      out[voice.id] = []
+      continue
+    }
     if (!Array.isArray(row)) return null
-    const cells: boolean[] = []
+    const cells: HitLevel[] = []
     for (const cell of row) {
-      if (typeof cell !== 'boolean') return null
-      cells.push(cell)
+      const level = parseCell(cell)
+      if (level === null) return null
+      cells.push(level)
     }
     out[voice.id] = cells
   }
@@ -84,7 +105,8 @@ function parsePattern(raw: unknown): DrumPattern | null {
   if (!hits) return null
 
   // Normalise hit-array lengths to the pattern's grid size, so what's stored
-  // always matches what plays and renders.
+  // always matches what plays and renders (this also fills missing voices'
+  // empty rows with zeros). Levels are written back as numbers on next save.
   const steps = stepCount({ bars: obj.bars, subdivision: obj.subdivision })
   return {
     id: obj.id,

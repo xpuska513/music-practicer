@@ -32,10 +32,22 @@
   font-weight: 700;
   color: var(--text-dim);
   background: var(--bg-elev);
+  white-space: nowrap;
+}
+
+.drumgrid-label-short {
+  display: none;
+}
+
+/* A little air between the cymbals, the drums and the feet. */
+.drumgrid-label.is-group-start,
+.drumgrid-cell.is-group-start {
+  margin-top: 6px;
 }
 
 .drumgrid-cell {
   appearance: none;
+  position: relative;
   display: grid;
   place-items: center;
   width: 34px;
@@ -64,16 +76,59 @@
   outline-offset: 1px;
 }
 
-/* Active hit */
-.drumgrid-cell.is-active {
-  background: rgba(61, 220, 151, 0.16);
-  border-color: var(--accent);
-}
-
+/* Hit levels read as a ramp, quiet → loud: a faint bracketed glyph (ghost),
+   a tinted cell (normal), a solid cell marked ">" (accent). */
 .drumgrid-glyph {
   font-size: 16px;
   font-weight: 700;
   color: var(--accent);
+}
+
+.drumgrid-cell.is-normal {
+  background: rgba(61, 220, 151, 0.16);
+  border-color: var(--accent);
+}
+
+.drumgrid-cell.is-ghost {
+  background: rgba(61, 220, 151, 0.05);
+  border-color: rgba(61, 220, 151, 0.4);
+}
+
+.drumgrid-cell.is-ghost .drumgrid-glyph {
+  font-size: 10px;
+  font-weight: 600;
+  opacity: 0.7;
+}
+
+.drumgrid-cell.is-ghost .drumgrid-glyph::before {
+  content: '(';
+  margin-right: 1px;
+}
+
+.drumgrid-cell.is-ghost .drumgrid-glyph::after {
+  content: ')';
+  margin-left: 1px;
+}
+
+.drumgrid-cell.is-accent {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+/* The glyph drops a little so the accent wedge sits above it, as on a staff. */
+.drumgrid-cell.is-accent .drumgrid-glyph {
+  font-size: 17px;
+  font-weight: 900;
+  color: #07120c;
+  transform: translateY(4px);
+}
+
+.drumgrid-accent {
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #07120c;
 }
 
 /* Beat / bar dividers — a thicker left edge marks the start of each group. */
@@ -91,6 +146,30 @@
   background: rgba(245, 166, 35, 0.12);
 }
 
-.drumgrid-cell.is-playhead.is-active {
+.drumgrid-cell.is-playhead.is-on {
   background: rgba(245, 166, 35, 0.22);
+}
+
+.drumgrid-cell.is-playhead.is-accent {
+  background: var(--accent-2);
+}
+
+/* Phones: short row labels, and the grid scrolls sideways under them. */
+@media (max-width: 680px) {
+  .drumgrid-scroll {
+    padding: 8px;
+  }
+
+  .drumgrid-label {
+    min-width: 40px;
+    padding: 0 8px 0 2px;
+  }
+
+  .drumgrid-label-full {
+    display: none;
+  }
+
+  .drumgrid-label-short {
+    display: inline;
+  }
 }
