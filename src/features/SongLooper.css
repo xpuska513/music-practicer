@@ -583,6 +583,57 @@
   font-size: 13px;
 }
 
+/* ── Play along (audio file + video) ── */
+.playalong {
+  gap: 16px;
+}
+.playalong__part + .playalong__part {
+  padding-top: 14px;
+  border-top: 1px dashed var(--border);
+}
+.playalong__h {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 800;
+}
+.playalong__file {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 600;
+}
+.beats-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+.beats-progress__label {
+  font-variant-numeric: tabular-nums;
+}
+.beats-progress progress {
+  width: 100%;
+  height: 8px;
+  appearance: none;
+  border: 0;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--bg-elev-2);
+  accent-color: var(--accent);
+}
+.beats-progress progress::-webkit-progress-bar {
+  background: var(--bg-elev-2);
+}
+.beats-progress progress::-webkit-progress-value {
+  background: var(--accent);
+  transition: width 0.3s ease;
+}
+.beats-progress progress::-moz-progress-bar {
+  background: var(--accent);
+}
+
 /* ── Drag & drop ── */
 .songs__drop {
   position: fixed;
