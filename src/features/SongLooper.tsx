@@ -1,14 +1,23 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { RefObject } from 'react'
-import { useSongLibrary, getSongData } from '../songs/songStore'
+import { useSongLibrary, getSongData, getSongAudio, putSongAudio, deleteSongAudio } from '../songs/songStore'
 import type { SongMeta } from '../songs/songStore'
 import { useSongSections } from '../songs/useSongSections'
 import type { SongSection } from '../songs/useSongSections'
-import { DEFAULT_MIX, removeSongExtras, useSongExtras, withSyncPoint } from '../songs/useSongExtras'
-import type { PlaybackSource, SongVideo, SyncPoint, TrackMix } from '../songs/useSongExtras'
+import {
+  DEFAULT_MIX,
+  patchSongExtras,
+  removeSongExtras,
+  useSongExtras,
+  withSyncPoint,
+} from '../songs/useSongExtras'
+import type { PlaybackSource, SongAudio, SongVideo, SyncPoint, TrackMix } from '../songs/useSongExtras'
 import AlphaTabViewer from '../songs/AlphaTabViewer'
-import type { AlphaTabHandle, ExternalMedia, ScoreInfo, TrackInfo } from '../songs/AlphaTabViewer'
+import type { AlphaTabHandle, BeatGrid, ExternalMedia, ScoreInfo, TrackInfo } from '../songs/AlphaTabViewer'
 import VideoPane from '../songs/VideoPane'
+import { useAudioMedia } from '../songs/audioMedia'
+import { decodeForBeats, findBeats, progressFraction } from '../songs/beats/findBeats'
+import { nearestIndex } from '../songs/beats/barMap'
 import { formatMs, parseYouTubeUrl } from '../songs/youtube'
 import { clickReady, installClickUnlock, primeClick } from '../songs/click'
 import Sheet from '../components/Sheet'
@@ -32,8 +41,27 @@ const IS_IOS =
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1))
 
 const GP_EXT = /\.(gp|gp[345x])$/i
+const AUDIO_EXT = /\.(mp3|m4a|aac|wav|aiff?|flac|ogg|oga|opus|webm)$/i
+const isAudioFile = (f: File) => f.type.startsWith('audio/') || AUDIO_EXT.test(f.name)
 
 type SheetId = 'library' | 'mixer' | 'loops' | 'video'
+
+/** The beat finder at work on one song's audio. */
+interface BeatJob {
+  songId: string
+  /** 0..1 */
+  progress: number
+  stage: string
+  error: string | null
+}
+
+/** The source to play: the one chosen if it's still attached, else video, then audio. */
+function pickSource(chosen: PlaybackSource | undefined, hasVideo: boolean, hasAudio: boolean): PlaybackSource {
+  if (chosen === 'synth') return 'synth'
+  if (chosen === 'audio' && hasAudio) return 'audio'
+  if (chosen === 'video' && hasVideo) return 'video'
+  return hasVideo ? 'video' : hasAudio ? 'audio' : 'synth'
+}
 
 function formatBytes(n: number): string {
   if (n < 1024) return `${n} B`
@@ -124,15 +152,52 @@ export default function SongLooper() {
   const [clickVolume, setClickVolume] = usePersistentState<number>('songs:clickVol', 1, isClickLevel)
 
   const wide = useMediaQuery('(min-width: 960px)')
-  const { extras, setVideo, setSync, setSource, setTrackMix, setMeta, setVideoVolume } =
-    useSongExtras(activeSongId)
+  const {
+    extras,
+    setVideo,
+    setSync,
+    setSource,
+    setTrackMix,
+    setMeta,
+    setVideoVolume,
+    setAudio,
+    setAudioSync,
+    setAudioVolume,
+  } = useSongExtras(activeSongId)
   const video = extras.video ?? null
-  const source: PlaybackSource = video && extras.source !== 'synth' ? 'video' : 'synth'
+  const audio = extras.audio ?? null
+  const source = pickSource(extras.source, !!video, !!audio)
   const mix = extras.mix ?? {}
-  const videoVolume = extras.videoVolume ?? 1
+  const mediaVolume = (source === 'audio' ? extras.audioVolume : extras.videoVolume) ?? 1
 
-  const [media, setMedia] = useState<ExternalMedia | null>(null)
+  const [videoMedia, setVideoMedia] = useState<ExternalMedia | null>(null)
   const [videoError, setVideoError] = useState<string | null>(null)
+  const [audioError, setAudioError] = useState<string | null>(null)
+  const audioMedia = useAudioMedia(
+    source === 'audio' ? activeSongId : null,
+    audio ? `${audio.name}:${audio.size}` : '',
+    setAudioError,
+  )
+  const media = source === 'video' ? videoMedia : source === 'audio' ? audioMedia : null
+
+  // The playing source's sync points, and (audio) the beats found in it —
+  // kept stable across unrelated extras edits so the viewer only re-syncs
+  // when they really change.
+  const rawSync = source === 'audio' ? audio?.sync : source === 'video' ? video?.sync : undefined
+  const syncKey = (rawSync ?? []).map((p) => `${p.bar}@${p.ms}`).join(',')
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const syncPoints = useMemo(() => rawSync ?? [], [syncKey])
+  const setSyncPoints = source === 'audio' ? setAudioSync : setSync
+  const beatList = source === 'audio' ? audio?.beats : undefined
+  const downbeatList = source === 'audio' ? audio?.downbeats : undefined
+  const gridKey = beatList && downbeatList ? `${beatList.length}:${beatList[0]}:${beatList[beatList.length - 1]}:${downbeatList.length}` : ''
+  const beatGrid = useMemo<BeatGrid | null>(
+    () => (beatList && downbeatList ? { beats: beatList, downbeats: downbeatList } : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [gridKey],
+  )
+  const [linedUp, setLinedUp] = useState<{ bars: number; total: number } | null>(null)
+  const onLinedUp = useCallback((bars: number, total: number) => setLinedUp({ bars, total }), [])
 
   const [bytes, setBytes] = useState<ArrayBuffer | null>(null)
   const [bytesLoading, setBytesLoading] = useState(false)
@@ -151,6 +216,7 @@ export default function SongLooper() {
 
   const viewerRef = useRef<AlphaTabHandle>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const audioInputRef = useRef<HTMLInputElement>(null)
   const layoutRef = useRef<HTMLDivElement>(null)
   const scoreRef = useRef<HTMLDivElement>(null)
   const sideRef = useRef<HTMLElement>(null)
@@ -164,7 +230,7 @@ export default function SongLooper() {
   useEffect(() => installClickUnlock(), [])
   // While the video plays with the click on, keep an eye on whether the
   // browser actually lets it sound (iOS needs a tap first).
-  const watchClick = metronomeOn && playing && source === 'video'
+  const watchClick = metronomeOn && playing && source !== 'synth'
   useTicker(watchClick, 500)
   const clickBlocked = watchClick && !clickReady()
 
@@ -210,16 +276,108 @@ export default function SongLooper() {
       setTrackIndex(null)
       setViewerError(null)
       setVideoError(null)
-      setMedia(null)
+      setAudioError(null)
+      setVideoMedia(null)
+      setLinedUp(null)
       resetPlayback()
       setSheet(null)
     },
     [setActiveSongId, resetPlayback],
   )
 
+  // ── The beat finder: one job at a time, saved to its song when done ──
+  const [beatJob, setBeatJob] = useState<BeatJob | null>(null)
+  const beatAbortRef = useRef<AbortController | null>(null)
+  /** The song whose job is running or showing its error. */
+  const beatSongRef = useRef<string | null>(null)
+  useEffect(() => () => beatAbortRef.current?.abort(), [])
+  const stopBeatJob = useCallback((songId?: string) => {
+    if (!beatSongRef.current || (songId && beatSongRef.current !== songId)) return
+    beatAbortRef.current?.abort()
+    beatSongRef.current = null
+    setBeatJob(null)
+  }, [])
+
+  const runBeatFinder = useCallback(async (songId: string) => {
+    beatAbortRef.current?.abort()
+    const abort = new AbortController()
+    beatAbortRef.current = abort
+    beatSongRef.current = songId
+    const report = (job: Omit<BeatJob, 'songId'>) => {
+      if (!abort.signal.aborted) setBeatJob({ songId, ...job })
+    }
+    report({ progress: 0, stage: 'Reading the audio…', error: null })
+    try {
+      const file = await getSongAudio(songId)
+      if (!file) throw new Error('the audio file is missing')
+      const audio = await decodeForBeats(file.data)
+      const found = await findBeats(
+        audio,
+        (p) =>
+          report({
+            progress: progressFraction(p),
+            stage: p.stage === 'loading' ? 'Loading the beat finder…' : 'Finding the beats…',
+            error: null,
+          }),
+        abort.signal,
+      )
+      if (abort.signal.aborted) return
+      const ms = (times: number[]) => times.map((t) => Math.round(t * 1000))
+      patchSongExtras(songId, (cur) =>
+        cur.audio ? { ...cur, audio: { ...cur.audio, beats: ms(found.beats), downbeats: ms(found.downbeats) } } : cur,
+      )
+      beatSongRef.current = null
+      setBeatJob(null)
+    } catch (err) {
+      if (abort.signal.aborted) return
+      const message =
+        err instanceof DOMException && err.name === 'EncodingError'
+          ? 'this browser can’t decode that file'
+          : err instanceof Error
+            ? err.message
+            : String(err)
+      report({ progress: 0, stage: '', error: message })
+    }
+  }, [])
+
+  const attachAudio = useCallback(
+    async (file: File) => {
+      if (!activeSongId) return
+      const songId = activeSongId
+      try {
+        await putSongAudio(songId, { name: file.name, type: file.type, data: await file.arrayBuffer() })
+      } catch {
+        setAudioError('Could not save that audio file.')
+        return
+      }
+      viewerRef.current?.stop()
+      resetPlayback()
+      setAudioError(null)
+      setLinedUp(null)
+      setAudio({ name: file.name, size: file.size, sync: [] })
+      void runBeatFinder(songId)
+    },
+    [activeSongId, resetPlayback, setAudio, runBeatFinder],
+  )
+
+  const removeAudio = useCallback(() => {
+    stopBeatJob(activeSongId)
+    viewerRef.current?.stop()
+    resetPlayback()
+    setAudioError(null)
+    setLinedUp(null)
+    setPicking(false)
+    void deleteSongAudio(activeSongId)
+    setAudio(null)
+  }, [activeSongId, stopBeatJob, resetPlayback, setAudio])
+
   const handleImport = useCallback(
     async (files: FileList | File[] | null | undefined) => {
-      const list = Array.from(files ?? []).filter((f) => GP_EXT.test(f.name))
+      const all = Array.from(files ?? [])
+      // An audio file dropped on an open song attaches to it.
+      const sound = all.find(isAudioFile)
+      if (sound && activeSongId) void attachAudio(sound)
+      const list = all.filter((f) => GP_EXT.test(f.name))
       let last: SongMeta | null = null
       for (const file of list) {
         // Re-importing the same export just opens the copy we already have.
@@ -228,17 +386,18 @@ export default function SongLooper() {
       }
       if (last) openSong(last.id)
     },
-    [songs, importFile, openSong],
+    [songs, importFile, openSong, activeSongId, attachAudio],
   )
 
   const handleDeleteSong = useCallback(
     (id: string) => {
+      stopBeatJob(id)
       removeBySong(id)
       removeSongExtras(id)
       void remove(id)
       if (id === activeSongId) openSong('')
     },
-    [remove, removeBySong, activeSongId, openSong],
+    [remove, removeBySong, activeSongId, openSong, stopBeatJob],
   )
 
   const onScoreLoaded = useCallback(
@@ -297,16 +456,18 @@ export default function SongLooper() {
   useEffect(() => {
     if (ready) viewerRef.current?.setClickVolume(clickVolume)
   }, [ready, clickVolume])
-  // The video's level (remembered per song).
+  // The video's / audio file's level (remembered per song).
   useEffect(() => {
-    media?.setVolume(videoVolume)
-  }, [media, videoVolume])
+    media?.setVolume(mediaVolume)
+  }, [media, mediaVolume])
 
   const switchSource = useCallback(
     (next: PlaybackSource) => {
       if (next === source) return
       viewerRef.current?.stop()
       resetPlayback()
+      setPicking(false)
+      setLinedUp(null)
       setSource(next)
     },
     [source, resetPlayback, setSource],
@@ -315,6 +476,8 @@ export default function SongLooper() {
   const loopSection = useCallback((sec: SongSection) => {
     primeClick()
     const started = viewerRef.current?.loopBars(sec.barStart, sec.barEnd) ?? false
+    // iOS only lets an audio element start inside the tap itself.
+    if (started && source === 'audio') media?.play()
     if (started) {
       setActiveLoopId(sec.id)
       setLoopNote(null)
@@ -323,7 +486,7 @@ export default function SongLooper() {
       setActiveLoopId(null)
       setLoopNote('Still preparing playback — tap Loop again in a moment.')
     }
-  }, [])
+  }, [source, media])
 
   const clearLoop = useCallback(() => {
     viewerRef.current?.clearLoop()
@@ -357,7 +520,9 @@ export default function SongLooper() {
         ? 'Parsing…'
         : source === 'video' && !media
           ? 'Loading video…'
-          : ready
+          : source === 'audio' && !media
+            ? 'Loading audio…'
+            : ready
             ? ''
             : source === 'synth'
               ? 'Loading sounds…'
@@ -375,9 +540,9 @@ export default function SongLooper() {
       mix={mix}
       onMix={changeMix}
       disabled={!ready}
-      videoMode={source === 'video'}
-      videoVolume={videoVolume}
-      onVideoVolume={setVideoVolume}
+      external={source === 'synth' ? null : source}
+      mediaVolume={mediaVolume}
+      onMediaVolume={source === 'audio' ? setAudioVolume : setVideoVolume}
       clickVolume={clickVolume}
       onClickVolume={setClickVolume}
     />
@@ -412,11 +577,11 @@ export default function SongLooper() {
 
   const pickBar = useCallback(
     (bar: number) => {
-      if (!video || !media) return
-      setSync(withSyncPoint(video.sync, bar, media.currentTimeMs()))
+      if (!media) return
+      setSyncPoints(withSyncPoint(syncPoints, bar, media.currentTimeMs()))
       setPicking(false)
     },
-    [video, media, setSync],
+    [media, syncPoints, setSyncPoints],
   )
   const viewingTrack = scoreInfo?.tracks.find((t) => t.index === trackIndex) ?? null
 
@@ -430,29 +595,50 @@ export default function SongLooper() {
   }, [syncNote])
   const tapOnTheOne = useCallback(() => {
     const bar = viewerRef.current?.nearestBar()
-    if (!video || !media || bar == null) return
+    if (!media || bar == null) return
     const ms = media.currentTimeMs()
-    setSync(withSyncPoint(video.sync, bar, ms))
+    setSyncPoints(withSyncPoint(syncPoints, bar, ms))
     setSyncNote(`Bar ${bar} → ${formatMs(ms)}`)
-  }, [video, media, setSync])
+  }, [media, syncPoints, setSyncPoints])
+
+  const togglePicking = useCallback(() => {
+    setPicking((p) => !p)
+    setSheet(null) // phones: get the sheet out of the way of the score
+  }, [])
+
+  const job = beatJob && beatJob.songId === activeSongId ? beatJob : null
+  const audioPanel = activeSong ? (
+    <AudioSettings
+      audio={audio}
+      source={source}
+      media={source === 'audio' ? media : null}
+      error={audioError}
+      job={job}
+      linedUp={source === 'audio' ? linedUp : null}
+      picking={picking}
+      onPick={togglePicking}
+      onAdd={() => audioInputRef.current?.click()}
+      onRemove={removeAudio}
+      onFindBeats={() => void runBeatFinder(activeSong.id)}
+      onSync={setAudioSync}
+      onSource={switchSource}
+    />
+  ) : null
 
   const videoPanel = activeSong ? (
     <VideoSettings
       video={video}
       source={source}
-      media={media}
+      media={source === 'video' ? media : null}
       error={videoError}
       barCount={scoreInfo?.barCount ?? 1}
       currentBar={currentBar}
       track={viewingTrack}
       picking={picking}
-      onPick={() => {
-        setPicking((p) => !p)
-        setSheet(null) // phones: get the sheet out of the way of the score
-      }}
+      onPick={togglePicking}
       onAttach={(v) => {
         setVideoError(null)
-        setMedia(null)
+        setVideoMedia(null)
         viewerRef.current?.stop()
         resetPlayback()
         setVideo(v)
@@ -460,7 +646,8 @@ export default function SongLooper() {
       onRemove={() => {
         viewerRef.current?.stop()
         resetPlayback()
-        setMedia(null)
+        setPicking(false)
+        setVideoMedia(null)
         setVideoError(null)
         setVideo(null)
       }}
@@ -468,6 +655,20 @@ export default function SongLooper() {
       onSource={switchSource}
     />
   ) : null
+
+  // Both ways to play along to the real recording.
+  const playAlongPanel = (
+    <div className="col playalong">
+      <section className="col playalong__part">
+        <h5 className="playalong__h">🎧 Audio file</h5>
+        {audioPanel}
+      </section>
+      <section className="col playalong__part">
+        <h5 className="playalong__h">▶ YouTube video</h5>
+        {videoPanel}
+      </section>
+    </div>
+  )
 
   const library = (
     <Library
@@ -510,6 +711,18 @@ export default function SongLooper() {
         }}
       />
 
+      <input
+        ref={audioInputRef}
+        type="file"
+        accept="audio/*,.mp3,.m4a,.aac,.wav,.aif,.aiff,.flac,.ogg,.opus"
+        className="songs__file"
+        onChange={(e) => {
+          const file = e.target.files?.[0]
+          if (file) void attachAudio(file)
+          e.target.value = ''
+        }}
+      />
+
       {libError ? <p className="songs__err" role="alert">{libError}</p> : null}
 
       {!activeSong ? (
@@ -519,8 +732,8 @@ export default function SongLooper() {
               <h3 className="songs__h">🎼 Songs</h3>
               <p className="muted songs__sub">
                 Import a Guitar Pro file (e.g. a Songsterr export), pick the guitar or bass
-                track, loop sections — or attach the YouTube video and play along to the real
-                recording. You can also drop files here.
+                track, loop sections — or add the song’s audio file or YouTube video and play
+                along to the real recording. You can also drop files here.
               </p>
             </div>
             <button type="button" className="btn btn-primary" onClick={() => fileInputRef.current?.click()}>
@@ -555,7 +768,7 @@ export default function SongLooper() {
                 <VideoPane
                   key={video.id}
                   videoId={video.id}
-                  onMedia={setMedia}
+                  onMedia={setVideoMedia}
                   onError={setVideoError}
                 />
               </div>
@@ -565,7 +778,8 @@ export default function SongLooper() {
               {picking ? (
                 <div className="songs-pick" role="status">
                   <span>
-                    Tap the bar the video is at — pause right on its first beat
+                    Tap the bar the {source === 'audio' ? 'recording' : 'video'} is at — pause right on
+                    its first beat
                     {media ? <span className="mono"> ({formatMs(media.currentTimeMs())})</span> : null}.
                   </span>
                   <button type="button" className="btn" onClick={() => setPicking(false)}>
@@ -581,13 +795,15 @@ export default function SongLooper() {
                   trackIndex={trackIndex}
                   source={source}
                   media={media}
-                  syncPoints={video?.sync ?? []}
+                  syncPoints={syncPoints}
+                  beats={beatGrid}
+                  onLinedUp={onLinedUp}
                   onScoreLoaded={onScoreLoaded}
                   onReadyChange={setReady}
                   onPlayingChange={setPlaying}
                   onError={setViewerError}
                   onBarChange={setCurrentBar}
-                  onPickBar={picking && source === 'video' && media ? pickBar : null}
+                  onPickBar={picking && source !== 'synth' && media ? pickBar : null}
                 />
               ) : (
                 <div className="songs-score__placeholder muted">{status || ' '}</div>
@@ -597,8 +813,8 @@ export default function SongLooper() {
             {wide ? (
               <aside ref={sideRef} className="songs-side">
                 <section className="songs-card">
-                  <h4 className="songs-card__h">Video</h4>
-                  {videoPanel}
+                  <h4 className="songs-card__h">Play along</h4>
+                  {playAlongPanel}
                 </section>
                 <section className="songs-card">
                   <h4 className="songs-card__h">Mixer</h4>
@@ -621,7 +837,12 @@ export default function SongLooper() {
                 disabled={!canPlay}
                 onClick={() => {
                   primeClick()
-                  viewerRef.current?.playPause()
+                  // iOS only lets an audio element start inside the tap itself;
+                  // the viewer follows the element's play/pause.
+                  if (source === 'audio' && media) {
+                    if (playing) media.pause()
+                    else media.play()
+                  } else viewerRef.current?.playPause()
                 }}
                 aria-label={playing ? 'Pause' : 'Play'}
               >
@@ -674,24 +895,31 @@ export default function SongLooper() {
                   </button>
                 </span>
               ) : null}
-              {source === 'video' && media && playing ? (
+              {source !== 'synth' && media && playing ? (
                 <button
                   type="button"
                   className="btn songs-transport__one"
                   onClick={tapOnTheOne}
-                  title="Tap exactly when you hear the first beat of a bar to lock that bar to the video"
+                  title="Tap exactly when you hear the first beat of a bar to lock that bar to the recording"
                 >
                   {syncNote ?? '⤓ Tap on the 1'}
                 </button>
               ) : null}
-              {video ? (
+              {video || audio ? (
                 <div className="songs-source" role="group" aria-label="Sound source">
                   <button type="button" className="chip" aria-pressed={source === 'synth'} onClick={() => switchSource('synth')}>
                     Synth
                   </button>
-                  <button type="button" className="chip" aria-pressed={source === 'video'} onClick={() => switchSource('video')}>
-                    Video
-                  </button>
+                  {video ? (
+                    <button type="button" className="chip" aria-pressed={source === 'video'} onClick={() => switchSource('video')}>
+                      Video
+                    </button>
+                  ) : null}
+                  {audio ? (
+                    <button type="button" className="chip" aria-pressed={source === 'audio'} onClick={() => switchSource('audio')}>
+                      Audio
+                    </button>
+                  ) : null}
                 </div>
               ) : null}
               {!wide ? (
@@ -703,7 +931,7 @@ export default function SongLooper() {
                     Loops{songSections.length ? ` · ${songSections.length}` : ''}
                   </button>
                   <button type="button" className="btn songs-transport__sheet" onClick={() => setSheet('video')}>
-                    {video ? 'Sync' : 'Video'}
+                    {video || audio ? 'Sync' : 'Play along'}
                   </button>
                 </>
               ) : null}
@@ -719,13 +947,17 @@ export default function SongLooper() {
           <Sheet open={sheet === 'loops'} title="Loop sections" onClose={() => setSheet(null)}>
             {loopsPanel}
           </Sheet>
-          <Sheet open={sheet === 'video'} title={video ? 'Video sync' : 'Video'} onClose={() => setSheet(null)}>
-            {videoPanel}
+          <Sheet open={sheet === 'video'} title="Play along" onClose={() => setSheet(null)}>
+            {playAlongPanel}
           </Sheet>
         </>
       )}
 
-      {dragging ? <div className="songs__drop" aria-hidden="true">Drop Guitar Pro files to import</div> : null}
+      {dragging ? (
+        <div className="songs__drop" aria-hidden="true">
+          {activeSong ? 'Drop Guitar Pro files to import — or the song’s audio file' : 'Drop Guitar Pro files to import'}
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -787,6 +1019,7 @@ function SongLabel({ song, fallback }: { song: SongMeta; fallback: string }) {
         {extras.artist ? `${extras.artist} · ` : ''}
         {formatBytes(song.size)}
         {extras.video ? ' · ▶ video' : ''}
+        {extras.audio ? ' · 🎧 audio' : ''}
       </span>
     </>
   )
@@ -834,9 +1067,9 @@ function Mixer({
   mix,
   onMix,
   disabled,
-  videoMode,
-  videoVolume,
-  onVideoVolume,
+  external,
+  mediaVolume,
+  onMediaVolume,
   clickVolume,
   onClickVolume,
 }: {
@@ -846,22 +1079,31 @@ function Mixer({
   mix: Record<number, TrackMix>
   onMix: (index: number, patch: Partial<TrackMix>) => void
   disabled: boolean
-  videoMode: boolean
-  videoVolume: number
-  onVideoVolume: (volume: number) => void
+  /** The recording playing instead of the synth, if any. */
+  external: 'video' | 'audio' | null
+  mediaVolume: number
+  onMediaVolume: (volume: number) => void
   clickVolume: number
   onClickVolume: (volume: number) => void
 }) {
+  const videoMode = external != null
+  const what = external === 'audio' ? 'audio' : 'video'
   return (
     <div className="col mixer">
       <div className="mixer__levels">
         {videoMode && !IS_IOS ? (
-          <LevelRow icon="🎬" label="Video" value={videoVolume} max={1} onChange={onVideoVolume} />
+          <LevelRow
+            icon={external === 'audio' ? '🎧' : '🎬'}
+            label={external === 'audio' ? 'Audio' : 'Video'}
+            value={mediaVolume}
+            max={1}
+            onChange={onMediaVolume}
+          />
         ) : null}
         <LevelRow icon="🎵" label="Click" value={clickVolume} max={1.5} onChange={onClickVolume} />
         {videoMode && IS_IOS ? (
           <p className="muted mixer__note">
-            On iPhone / iPad the video follows the device volume — turn that down and use Click to
+            On iPhone / iPad the {what} follows the device volume — turn that down and use Click to
             balance.
           </p>
         ) : null}
@@ -1051,6 +1293,191 @@ function Loops({
         />
         <button type="button" className="btn btn-primary" onClick={save}>
           Save section
+        </button>
+      </div>
+    </div>
+  )
+}
+
+/** A song's audio file: add it, find its beats, fix where the tab lines up. */
+function AudioSettings({
+  audio,
+  source,
+  media,
+  error,
+  job,
+  linedUp,
+  picking,
+  onPick,
+  onAdd,
+  onRemove,
+  onFindBeats,
+  onSync,
+  onSource,
+}: {
+  audio: SongAudio | null
+  source: PlaybackSource
+  media: ExternalMedia | null
+  error: string | null
+  job: BeatJob | null
+  linedUp: { bars: number; total: number } | null
+  picking: boolean
+  onPick: () => void
+  onAdd: () => void
+  onRemove: () => void
+  onFindBeats: () => void
+  onSync: (sync: SyncPoint[]) => void
+  onSource: (source: PlaybackSource) => void
+}) {
+  useTicker(!!media && source === 'audio')
+
+  if (!audio) {
+    return (
+      <div className="col vsync">
+        <p className="muted vsync__hint">
+          Add the song’s audio file (MP3, M4A, WAV…) and the beat finder 🤖 lines the tab up with it
+          bar by bar — right here on your device. The click follows the recording.
+        </p>
+        <button type="button" className="btn btn-primary" onClick={onAdd}>
+          + Add audio file
+        </button>
+      </div>
+    )
+  }
+
+  const beats = audio.beats ?? null
+  // With beats, the first downbeat stands in for bar 1 until the player taps one.
+  const auto = audio.sync.length === 0
+  const points = auto ? [{ bar: 1, ms: audio.downbeats?.[0] ?? 0 }] : audio.sync
+  /** One beat earlier / later (or 50 ms without beats). */
+  const nudge = (p: SyncPoint, dir: -1 | 1) => {
+    let ms = p.ms + dir * 50
+    if (beats?.length) {
+      const i = nearestIndex(beats, p.ms)
+      ms = beats[Math.min(beats.length - 1, Math.max(0, i + dir))]
+    }
+    onSync(withSyncPoint(audio.sync, p.bar, ms))
+  }
+
+  return (
+    <div className="col vsync">
+      {error ? <p className="songs__err" role="alert">{error}</p> : null}
+      <div className="row vsync__row">
+        <span className="playalong__file" title={audio.name}>
+          {audio.name}
+          <span className="muted"> · {formatBytes(audio.size)}</span>
+        </span>
+        {source !== 'audio' ? (
+          <button type="button" className="btn btn-primary" onClick={() => onSource('audio')}>
+            Use audio
+          </button>
+        ) : null}
+      </div>
+
+      {job?.error ? (
+        <div className="row vsync__row">
+          <p className="songs__err">Couldn’t find the beats: {job.error}.</p>
+          <button type="button" className="btn" onClick={onFindBeats}>
+            Try again
+          </button>
+        </div>
+      ) : job ? (
+        <div className="beats-progress" role="status">
+          <progress value={job.progress} max={1} />
+          <span className="muted beats-progress__label">
+            {job.stage} {Math.round(job.progress * 100)}%
+          </span>
+        </div>
+      ) : beats ? (
+        <p className="muted vsync__hint">
+          🤖 Found {beats.length} beats
+          {linedUp ? ` — ${linedUp.bars} of ${linedUp.total} bars lined up` : ''}.
+        </p>
+      ) : (
+        <button type="button" className="btn btn-primary" onClick={onFindBeats}>
+          🤖 Find the beats
+        </button>
+      )}
+
+      {source === 'audio' ? (
+        <>
+          <p className="muted vsync__hint">
+            {beats ? (
+              <>
+                Tab a beat or a bar off? Pause right on a bar’s first beat and tap that bar, or hit{' '}
+                <strong>⤓ Tap on the 1</strong> while it plays — the beats line up the rest.
+              </>
+            ) : (
+              <>Sync: pause right on a hit you can hear, then tap that bar in the tab.</>
+            )}
+          </p>
+          <button
+            type="button"
+            className={`btn ${picking ? '' : 'btn-primary'} vsync__pick`}
+            disabled={!media}
+            onClick={onPick}
+          >
+            {picking ? 'Cancel picking' : '🎯 Tap the bar in the tab'}
+          </button>
+          <ul className="vsync__list">
+            {points.map((p) => (
+              <li key={p.bar} className="vsync__point">
+                <span className="vsync__bar">Bar {p.bar}</span>
+                <span className="mono vsync__time">
+                  {formatMs(p.ms)}
+                  {auto && beats ? <span className="muted"> · auto</span> : null}
+                </span>
+                <button
+                  type="button"
+                  className="btn vsync__nudge"
+                  onClick={() => nudge(p, -1)}
+                  title={beats ? 'One beat earlier' : '50 ms earlier'}
+                >
+                  −
+                </button>
+                <button
+                  type="button"
+                  className="btn vsync__nudge"
+                  onClick={() => nudge(p, 1)}
+                  title={beats ? 'One beat later' : '50 ms later'}
+                >
+                  +
+                </button>
+                <button
+                  type="button"
+                  className="btn vsync__nudge"
+                  onClick={() => media?.seekToMs(p.ms)}
+                  disabled={!media}
+                  title="Jump the recording here"
+                >
+                  ⤺
+                </button>
+                {!auto ? (
+                  <button
+                    type="button"
+                    className="vsync__del"
+                    onClick={() => onSync(audio.sync.filter((q) => q.bar !== p.bar))}
+                    aria-label={`Remove sync point for bar ${p.bar}`}
+                  >
+                    ✕
+                  </button>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : null}
+
+      <div className="row vsync__row">
+        {beats && !job ? (
+          <button type="button" className="btn vsync__remove" onClick={onFindBeats}>
+            Find again
+          </button>
+        ) : (
+          <span />
+        )}
+        <button type="button" className="btn vsync__remove" onClick={onRemove}>
+          Remove audio
         </button>
       </div>
     </div>

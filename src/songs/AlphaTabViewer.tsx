@@ -14,6 +14,8 @@ import soundFontUrl from './assets/FluidR3Mono_GM.sf3?url'
 import bravuraWoff2 from '@coderline/alphatab/font/Bravura.woff2?url'
 import bravuraWoff from '@coderline/alphatab/font/Bravura.woff?url'
 import { playClick, primeClick, setClickVolume } from './click'
+import { clickTimes, lineUpBars, nearestIndex } from './beats/barMap'
+import type { Click, PlayedBar } from './beats/barMap'
 import type { PlaybackSource, SyncPoint } from './useSongExtras'
 import './AlphaTabViewer.css'
 
@@ -38,8 +40,8 @@ export interface ScoreInfo {
 }
 
 /**
- * An external clock (a YouTube video) that drives playback in video mode.
- * alphaTab follows its position; the synth stays silent.
+ * An external clock (a YouTube video or an audio file) that drives playback
+ * in video / audio mode. alphaTab follows its position; the synth stays silent.
  */
 export interface ExternalMedia {
   /** Current media position in ms. */
@@ -86,16 +88,36 @@ export interface AlphaTabHandle {
   nearestBar(): number | null
 }
 
+/** Beat and downbeat times (ms into the media) found by the beat finder. */
+export interface BeatGrid {
+  beats: number[]
+  downbeats: number[]
+}
+
+interface FlatSync {
+  barIndex: number
+  barOccurence: number
+  barPosition: number
+  millisecondOffset: number
+}
+
 interface Props {
   /** Raw Guitar Pro file bytes. */
   data: ArrayBuffer
   /** Which track to render (null = leave default until chosen). */
   trackIndex: number | null
-  /** 'video' = `media` is the clock and the audio; the synth is silent. */
+  /** 'video' / 'audio' = `media` is the clock and the audio; the synth is silent. */
   source: PlaybackSource
   media: ExternalMedia | null
-  /** Video sync points (video mode). Empty = bar 1 at 0:00. */
+  /**
+   * The media's sync points ("bar N starts here"). Empty = bar 1 at 0:00. With
+   * `beats`, they're anchors and every other bar is lined up with the beats.
+   */
   syncPoints: SyncPoint[]
+  /** Beats found in the media: line all bars up with them, click on them. */
+  beats?: BeatGrid | null
+  /** How many played bars the beats lined up (of how many). */
+  onLinedUp?: (bars: number, total: number) => void
   onScoreLoaded: (info: ScoreInfo) => void
   onReadyChange: (ready: boolean) => void
   onPlayingChange: (playing: boolean) => void
@@ -116,6 +138,8 @@ const AlphaTabViewer = forwardRef<AlphaTabHandle, Props>(function AlphaTabViewer
     source,
     media,
     syncPoints,
+    beats,
+    onLinedUp,
     onScoreLoaded,
     onReadyChange,
     onPlayingChange,
@@ -136,7 +160,11 @@ const AlphaTabViewer = forwardRef<AlphaTabHandle, Props>(function AlphaTabViewer
   mediaRef.current = media
   const syncRef = useRef(syncPoints)
   syncRef.current = syncPoints
-  /** Metronome on? (video mode sounds it here; synth mode via alphaTab). */
+  const beatsRef = useRef(beats ?? null)
+  beatsRef.current = beats ?? null
+  /** With found beats: when to click (ms into the media), in order. */
+  const clicksRef = useRef<{ ms: number[]; accent: boolean[] } | null>(null)
+  /** Metronome on? (video / audio mode sounds it here; synth mode via alphaTab). */
   const clickOnRef = useRef(false)
   /** alphaTab echoes our own re-seeks back through handler.seekTo — ignore
    *  them until this time (performance.now()). */
@@ -144,10 +172,10 @@ const AlphaTabViewer = forwardRef<AlphaTabHandle, Props>(function AlphaTabViewer
   const clickLevelRef = useRef(1)
 
   // Keep the latest callbacks in a ref so the api is created exactly once.
-  const cbRef = useRef({ onScoreLoaded, onReadyChange, onPlayingChange, onError, onBarChange })
-  cbRef.current = { onScoreLoaded, onReadyChange, onPlayingChange, onError, onBarChange }
+  const cbRef = useRef({ onScoreLoaded, onReadyChange, onPlayingChange, onError, onBarChange, onLinedUp })
+  cbRef.current = { onScoreLoaded, onReadyChange, onPlayingChange, onError, onBarChange, onLinedUp }
 
-  const isVideo = source === 'video'
+  const isExternal = source !== 'synth'
 
   const renderSelected = () => {
     const api = apiRef.current
@@ -158,15 +186,59 @@ const AlphaTabViewer = forwardRef<AlphaTabHandle, Props>(function AlphaTabViewer
     if (track) api.renderTracks([track])
   }
 
+  /** The bars in playback order (repeats unrolled), once the MIDI exists. */
+  const playedBars = (): PlayedBar[] | null => {
+    const bars = apiRef.current?.tickCache?.masterBars
+    if (!bars?.length) return null
+    const seen = new Map<number, number>()
+    return bars.map((b) => {
+      const index = b.masterBar.index
+      const occurrence = seen.get(index) ?? 0
+      seen.set(index, occurrence + 1)
+      // Its length at the score's tempo (quarter = 960 ticks).
+      let ms = 0
+      b.tempoChanges.forEach((c, i) => {
+        const end = b.tempoChanges[i + 1]?.tick ?? b.end
+        ms += ((end - c.tick) / 960) * (60000 / (c.tempo || 120))
+      })
+      return { bar: index + 1, occurrence, ms, beats: b.masterBar.timeSignatureNumerator }
+    })
+  }
+
+  /** Every played bar's start, lined up with the beats from the anchors. */
+  const linedUpSync = (): FlatSync[] => {
+    const grid = beatsRef.current
+    const played = grid ? playedBars() : null
+    const setClicks = (clicks: Click[]) => {
+      clicksRef.current = { ms: clicks.map((c) => c.ms), accent: clicks.map((c) => c.accent) }
+    }
+    if (!grid) clicksRef.current = null
+    // Until the bars are known: the detected beats as they are.
+    else if (!played) setClicks(grid.beats.map((ms) => ({ ms, accent: grid.downbeats.includes(ms) })))
+    if (!grid || !played) return []
+    const times = lineUpBars(played, grid.beats, grid.downbeats, syncRef.current)
+    const points: FlatSync[] = []
+    played.forEach((p, k) => {
+      if (!Number.isFinite(times[k])) return
+      points.push({ barIndex: p.bar - 1, barOccurence: p.occurrence, barPosition: 0, millisecondOffset: Math.round(times[k]) })
+    })
+    setClicks(clickTimes(played, times, grid.beats))
+    cbRef.current.onLinedUp?.(points.length, played.length)
+    return points
+  }
+
   /** Push the sync points into the score model and the running player. */
   const applySync = (reloadPlayer: boolean) => {
     const api = apiRef.current
     const score = scoreRef.current
-    if (!api || !score || !isVideo) return
+    if (!api || !score || !isExternal) return
     const bars = score.masterBars.length
-    const points = syncRef.current
-      .filter((p) => p.bar <= bars)
-      .map((p) => ({ barIndex: p.bar - 1, barOccurence: 0, barPosition: 0, millisecondOffset: p.ms }))
+    let points = linedUpSync()
+    if (points.length === 0) {
+      points = syncRef.current
+        .filter((p) => p.bar <= bars)
+        .map((p) => ({ barIndex: p.bar - 1, barOccurence: 0, barPosition: 0, millisecondOffset: p.ms }))
+    }
     if (points.length === 0) points.push({ barIndex: 0, barOccurence: 0, barPosition: 0, millisecondOffset: 0 })
     score.applyFlatSyncPoints(points)
     if (!reloadPlayer) return
@@ -194,8 +266,8 @@ const AlphaTabViewer = forwardRef<AlphaTabHandle, Props>(function AlphaTabViewer
       [alphaTab.FontFileFormat.Woff, bravuraWoff],
     ])
     settings.player.enablePlayer = true
-    if (isVideo) {
-      // The video is the clock and the audio — no soundfont download needed.
+    if (isExternal) {
+      // The media is the clock and the audio — no soundfont download needed.
       settings.player.playerMode = alphaTab.PlayerMode.EnabledExternalMedia
     } else {
       settings.player.playerMode = alphaTab.PlayerMode.EnabledSynthesizer
@@ -242,9 +314,17 @@ const AlphaTabViewer = forwardRef<AlphaTabHandle, Props>(function AlphaTabViewer
     })
 
     api.playerReady.on(() => {
-      if (isVideo) applySync(true)
+      if (isExternal) applySync(true)
       cbRef.current.onReadyChange(true)
     })
+    // Lining bars up with beats needs the played-bar map from the MIDI. (Only
+    // subscribe with external media: subscribing reads the player's
+    // loadedMidiInfo, which recurses forever in alphaTab 1.8's synth worker.)
+    if (isExternal) {
+      api.midiLoaded.on(() => {
+        if (beatsRef.current) applySync(true)
+      })
+    }
     api.playerStateChanged.on((args) =>
       cbRef.current.onPlayingChange(args.state === alphaTab.synth.PlayerState.Playing),
     )
@@ -262,7 +342,7 @@ const AlphaTabViewer = forwardRef<AlphaTabHandle, Props>(function AlphaTabViewer
     })
 
     let raf = 0
-    if (isVideo) {
+    if (isExternal) {
       const output = api.player?.output as alphaTab.synth.IExternalMediaSynthOutput | undefined
       // The media position we last reported, and when (for jump detection).
       let lastMs = -1
@@ -273,6 +353,8 @@ const AlphaTabViewer = forwardRef<AlphaTabHandle, Props>(function AlphaTabViewer
       let prevTick = -1
       let prevAt = 0
       let clicked = -1
+      /** The detected beat (ms) whose click is already queued. */
+      let clickedBeat = -1
 
       /** The beat around `tick` and the one after it, from the tick map. */
       const beatsAt = (tick: number) => {
@@ -317,6 +399,23 @@ const AlphaTabViewer = forwardRef<AlphaTabHandle, Props>(function AlphaTabViewer
         }
       }
 
+      /** With found beats: queue the click due within ~50 ms. */
+      const scheduleBeatClicks = (t: number, rate: number, clicks: { ms: number[]; accent: boolean[] }) => {
+        const list = clicks.ms
+        let i = nearestIndex(list, t)
+        if (i < 0) return
+        // A beat we're just past (e.g. playback started right on it)…
+        if (list[i] < t - 30) i++
+        // …or the next one, queued slightly ahead on the audio clock.
+        for (let j = i; j < list.length && j <= i + 1; j++) {
+          const ahead = (list[j] - t) / (rate || 1)
+          if (ahead > 50) break
+          if (list[j] === clickedBeat) continue
+          playClick(clicks.accent[j], Math.max(0, ahead) / 1000)
+          clickedBeat = list[j]
+        }
+      }
+
       if (output) {
         output.handler = {
           get backingTrackDuration() {
@@ -335,6 +434,7 @@ const AlphaTabViewer = forwardRef<AlphaTabHandle, Props>(function AlphaTabViewer
             mediaRef.current?.seekToMs(time)
             lastMs = time
             lastAt = performance.now()
+            clickedBeat = -1
           },
           play() {
             mediaRef.current?.play()
@@ -361,9 +461,12 @@ const AlphaTabViewer = forwardRef<AlphaTabHandle, Props>(function AlphaTabViewer
               api.timePosition = api.timePosition
               prevTick = -1
               clicked = -1
+              clickedBeat = -1
             } else if (playing || t !== lastMs) {
               output.updatePosition(t)
-              if (playing && clickOnRef.current) scheduleClicks(now)
+              const clicks = clicksRef.current
+              if (playing && clickOnRef.current && clicks) scheduleBeatClicks(t, m.rate(), clicks)
+              else if (playing && clickOnRef.current) scheduleClicks(now)
               else prevTick = -1
             }
             lastMs = t
@@ -392,7 +495,7 @@ const AlphaTabViewer = forwardRef<AlphaTabHandle, Props>(function AlphaTabViewer
   // Keep alphaTab's play state in step with the video's own controls. The
   // speed may have been set before the video player was ready — hand it over.
   useEffect(() => {
-    if (!isVideo || !media) return
+    if (!isExternal || !media) return
     if (apiRef.current) media.setRate(apiRef.current.playbackSpeed)
     return media.subscribe((playing) => {
       const api = apiRef.current
@@ -404,7 +507,7 @@ const AlphaTabViewer = forwardRef<AlphaTabHandle, Props>(function AlphaTabViewer
       if (playing && !atPlaying) api.play()
       else if (!playing && atPlaying) api.pause()
     })
-  }, [isVideo, media])
+  }, [isExternal, media])
 
   // Bar picking (video sync): swallow taps before alphaTab sees them, so the
   // score doesn't seek, and resolve which bar was tapped.
@@ -462,11 +565,11 @@ const AlphaTabViewer = forwardRef<AlphaTabHandle, Props>(function AlphaTabViewer
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trackIndex])
 
-  // Re-apply edited sync points.
+  // Re-apply edited sync points / newly found beats.
   useEffect(() => {
     applySync(true)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [syncPoints])
+  }, [syncPoints, beats])
 
   useImperativeHandle(ref, () => ({
     playPause() {
@@ -520,7 +623,7 @@ const AlphaTabViewer = forwardRef<AlphaTabHandle, Props>(function AlphaTabViewer
     setMetronome(on: boolean) {
       clickOnRef.current = on
       const api = apiRef.current
-      if (api && !isVideo) api.metronomeVolume = on ? clickLevelRef.current : 0
+      if (api && !isExternal) api.metronomeVolume = on ? clickLevelRef.current : 0
     },
     nearestBar(): number | null {
       const api = apiRef.current
@@ -537,7 +640,7 @@ const AlphaTabViewer = forwardRef<AlphaTabHandle, Props>(function AlphaTabViewer
       clickLevelRef.current = volume
       setClickVolume(volume)
       const api = apiRef.current
-      if (api && !isVideo && clickOnRef.current) api.metronomeVolume = volume
+      if (api && !isExternal && clickOnRef.current) api.metronomeVolume = volume
     },
   }))
 
