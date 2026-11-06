@@ -11,7 +11,8 @@ backend — everything runs in your browser. Builds to plain static files you ca
 host anywhere (or open from disk). The only network use is fetching the guitar
 sound samples on first play (see Audio below) and — only if you attach a video
 to a song — YouTube's player (its official IFrame API, privacy-enhanced
-youtube-nocookie.com embed); everything else works offline.
+youtube-nocookie.com embed); everything else works offline. Even the AI beat
+finder runs on your device, from files this app serves itself.
 
 A 🎸 **Guitar** / 𝄢 **Bass** / 🥁 **Drums** / 🎼 **Songs** switch in the header
 swaps between the toolsets (it remembers your section + last tab; the Metronome
@@ -85,11 +86,21 @@ strings) with its own neck and tuning — independent of the guitar header tunin
     the tab (it tells you where your track first plays — e.g. a drum part that
     enters in bar 5); nudge ±50 ms, or add more sync points if the recording
     drifts from the tab. The video level is remembered per song.
+  - **🤖 Beat finder** — add the song's **audio file** (MP3, M4A, WAV…)
+    instead, and the [Beat This!](https://github.com/CPJKU/beat_this) model
+    finds its beats and downbeats right in the browser (about 5 s per minute
+    of audio on an Apple-silicon Mac; slower on older devices — the ~25 MB
+    model + runtime download once, then stay cached). Every bar of the tab is then lined up with the
+    recording, and the click lands on the recording's beats, so tempo drift and
+    a loose live feel no longer pull the tab off. If the tab starts a beat or a
+    bar off, tap the right bar once (or hit **Tap on the 1** while it plays)
+    and the beats line up the rest. Playback keeps its pitch at any speed.
   - Built for phones and tablets too: the score fills the screen above a
     sticky transport bar; the mixer, loops and video sync open as sheets on
     small screens and sit in a side column from 960 px wide.
-  - Imported files are kept in your browser (IndexedDB) so they reload next
-    time; sections, the mix and video sync persist in `localStorage`.
+  - Imported files (and attached audio) are kept in your browser (IndexedDB)
+    so they reload next time; sections, the mix, video sync and found beats
+    persist in `localStorage`.
     Rendering + playback are powered by [alphaTab](https://alphatab.net); the
     tab is loaded on demand so it never weighs down the rest of the app.
 
@@ -171,6 +182,12 @@ This project deliberately uses **only first-party / reputable packages**:
 | `@coderline/alphatab` | CoderLine (Daniel Kuschny) | reads/renders/plays Guitar Pro files for the Songs looper (MPL-2.0). The only reputable in-browser GP engine; largely self-contained (ships its own engine + fonts) rather than pulling a tree of small parsers |
 | `@coderline/alphatab-vite` | CoderLine | the official Vite plugin that wires alphaTab's web workers/audio worklets (dev dependency) |
 
+Not an npm package, but shipped with the app: the beat finder's runtime,
+**onnxruntime-web** (Microsoft, MIT), and the **Beat This!** model weights
+(JKU Linz, MIT). They're vendored as static files under `public/`, with their
+sources and SHA-256 checksums in a README next to each, so they add no
+install scripts and no dependency tree.
+
 No obscure utility packages, no analytics, no telemetry. alphaTab is the one
 larger dependency — a deliberate trade-off, since parsing Guitar Pro binaries by
 hand isn't realistic and a random small `gp5-parser` would be the exact
@@ -221,14 +238,22 @@ src/
     drumKit.ts             synthesized drum voices (Web Audio)
     useDrumSequencer.ts    step-sequencer playback hook (+ playhead)
   songs/
-    songStore.ts           IndexedDB store for imported Guitar Pro files + hook
+    songStore.ts           IndexedDB store for imported Guitar Pro files (+ attached audio) + hook
     useSongSections.ts      localStorage store for saved loop sections
-    useSongExtras.ts        per-song extras: YouTube video + sync points, source, mixer, levels
-    AlphaTabViewer.tsx      alphaTab wrapper: render track + player (synth or video clock;
-                            loop/mute/solo/volume/metronome)
+    useSongExtras.ts        per-song extras: video / audio + sync points, found beats, source,
+                            mixer, levels
+    AlphaTabViewer.tsx      alphaTab wrapper: render track + player (synth, or a video / audio
+                            clock with bars lined up to found beats; loop/mute/solo/volume/metronome)
     VideoPane.tsx           embedded YouTube player exposed as the score's media clock
+    audioMedia.ts           an attached audio file as the score's media clock
     youtube.ts              YouTube link parsing + lazy IFrame API loader
-    click.ts                metronome click for video playback (Web Audio)
+    click.ts                metronome click for video / audio playback (Web Audio)
+    beats/                  🤖 beat finder (Beat This!, on device)
+      findBeats.ts            decode + resample, run the worker
+      beatWorker.ts           log-mel → ONNX model (vendored onnxruntime-web) → beats
+      logMel.ts               the model's spectrogram front end, in TypeScript
+      postprocess.ts          official chunking + peak picking, ported
+      barMap.ts               line the tab's bars (and the click) up with found beats
     assets/FluidR3Mono_GM.sf3  FluidR3 GM soundfont for song playback (MIT, self-hosted)
   lib/
     usePersistentState.ts  validated localStorage-backed useState
