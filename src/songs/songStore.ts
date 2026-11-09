@@ -6,13 +6,15 @@ import { useCallback, useEffect, useState } from 'react'
  * Guitar Pro files can be several MB — too big for localStorage — so the raw
  * bytes live in IndexedDB. Metadata (name/size/date) is kept in a separate
  * object store so listing the library never has to deserialize every file's
- * bytes; the bytes are read on demand only when a song is opened.
+ * bytes; the bytes are read on demand only when a song is opened. A song's
+ * attached recording (an audio file) has a store of its own, keyed by song.
  */
 
 const DB_NAME = 'music-practicer'
-const DB_VERSION = 1
+const DB_VERSION = 2
 const META_STORE = 'song_meta'
 const DATA_STORE = 'song_data'
+const AUDIO_STORE = 'song_audio'
 
 export interface SongMeta {
   id: string
@@ -36,9 +38,23 @@ function getDb(): Promise<IDBDatabase> {
         if (!db.objectStoreNames.contains(DATA_STORE)) {
           db.createObjectStore(DATA_STORE) // key = song id, value = ArrayBuffer
         }
+        if (!db.objectStoreNames.contains(AUDIO_STORE)) {
+          db.createObjectStore(AUDIO_STORE) // key = song id, value = SongAudioFile
+        }
       }
-      req.onsuccess = () => resolve(req.result)
-      req.onerror = () => reject(req.error)
+      req.onsuccess = () => {
+        const db = req.result
+        // Let a newer version (another tab after an update) take over.
+        db.onversionchange = () => {
+          db.close()
+          dbPromise = null
+        }
+        resolve(db)
+      }
+      req.onerror = () => {
+        dbPromise = null
+        reject(req.error)
+      }
     })
   }
   return dbPromise
@@ -106,9 +122,39 @@ export async function getSongData(id: string): Promise<ArrayBuffer | null> {
 
 export async function deleteSong(id: string): Promise<void> {
   const db = await getDb()
-  const tx = db.transaction([META_STORE, DATA_STORE], 'readwrite')
+  const tx = db.transaction([META_STORE, DATA_STORE, AUDIO_STORE], 'readwrite')
   tx.objectStore(META_STORE).delete(id)
   tx.objectStore(DATA_STORE).delete(id)
+  tx.objectStore(AUDIO_STORE).delete(id)
+  await txDone(tx)
+}
+
+/** A song's recording, as imported. (Bytes, not a Blob: older iOS can't store Blobs.) */
+export interface SongAudioFile {
+  name: string
+  /** MIME type, for playing it back. */
+  type: string
+  data: ArrayBuffer
+}
+
+export async function putSongAudio(songId: string, file: SongAudioFile): Promise<void> {
+  const db = await getDb()
+  const tx = db.transaction(AUDIO_STORE, 'readwrite')
+  tx.objectStore(AUDIO_STORE).put(file, songId)
+  await txDone(tx)
+}
+
+export async function getSongAudio(songId: string): Promise<SongAudioFile | null> {
+  const db = await getDb()
+  const tx = db.transaction(AUDIO_STORE, 'readonly')
+  const file = await reqResult(tx.objectStore(AUDIO_STORE).get(songId) as IDBRequest<SongAudioFile | undefined>)
+  return file ?? null
+}
+
+export async function deleteSongAudio(songId: string): Promise<void> {
+  const db = await getDb()
+  const tx = db.transaction(AUDIO_STORE, 'readwrite')
+  tx.objectStore(AUDIO_STORE).delete(songId)
   await txDone(tx)
 }
 

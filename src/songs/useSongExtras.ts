@@ -2,10 +2,11 @@ import { useCallback, useEffect, useState } from 'react'
 
 /**
  * localStorage-backed per-song extras: an attached YouTube video (+ the sync
- * points that line it up with the score), which source plays (synth / video),
- * and the track mixer (volume / mute / solo). Mirrors the sections store: one
+ * points that line it up with the score), an attached audio file's details
+ * (+ the beats found in it), which source plays (synth / video / audio), and
+ * the track mixer (volume / mute / solo). Mirrors the sections store: one
  * validated key, an in-page change event, and a hook that stays in sync across
- * instances + tabs. The Guitar Pro bytes themselves stay in IndexedDB.
+ * instances + tabs. The Guitar Pro and audio bytes themselves stay in IndexedDB.
  */
 
 const EXTRAS_KEY = 'music-practicer:song-extras:v1'
@@ -24,6 +25,18 @@ export interface SongVideo {
   sync: SyncPoint[]
 }
 
+/** A recording of the song (its bytes are in IndexedDB, keyed by song). */
+export interface SongAudio {
+  name: string
+  /** File size in bytes. */
+  size: number
+  /** The player's own sync points ("bar N starts here"), sorted by bar. */
+  sync: SyncPoint[]
+  /** Beat and downbeat times (ms) found by the beat finder, if it has run. */
+  beats?: number[]
+  downbeats?: number[]
+}
+
 export interface TrackMix {
   /** 0..1 */
   volume: number
@@ -31,18 +44,21 @@ export interface TrackMix {
   solo: boolean
 }
 
-export type PlaybackSource = 'synth' | 'video'
+export type PlaybackSource = 'synth' | 'video' | 'audio'
 
 export interface SongExtras {
   /** Title / artist read from the score the last time it was opened. */
   title?: string
   artist?: string
   video?: SongVideo
+  audio?: SongAudio
   source?: PlaybackSource
   /** Keyed by track index. */
   mix?: Record<number, TrackMix>
   /** The attached video's volume, 0..1 (absent = full). */
   videoVolume?: number
+  /** The attached audio file's volume, 0..1 (absent = full). */
+  audioVolume?: number
 }
 
 export const DEFAULT_MIX: TrackMix = { volume: 1, muted: false, solo: false }
@@ -72,6 +88,13 @@ function parseSync(raw: unknown): SyncPoint[] {
   return out.sort((a, b) => a.bar - b.bar)
 }
 
+/** Sorted whole-ms times (beats), or undefined if `raw` isn't a list of them. */
+function parseTimes(raw: unknown): number[] | undefined {
+  if (!Array.isArray(raw) || raw.length > 50_000) return undefined
+  const out = raw.filter((t): t is number => isNum(t) && t >= 0).map(Math.round)
+  return out.sort((a, b) => a - b)
+}
+
 function parseExtras(raw: unknown): SongExtras | null {
   if (typeof raw !== 'object' || raw === null) return null
   const o = raw as Record<string, unknown>
@@ -82,8 +105,16 @@ function parseExtras(raw: unknown): SongExtras | null {
   if (v && typeof v === 'object' && typeof v.id === 'string' && /^[A-Za-z0-9_-]{11}$/.test(v.id)) {
     out.video = { id: v.id, sync: parseSync(v.sync) }
   }
-  if (o.source === 'synth' || o.source === 'video') out.source = o.source
+  const a = o.audio as Record<string, unknown> | undefined
+  if (a && typeof a === 'object' && typeof a.name === 'string' && isNum(a.size)) {
+    out.audio = { name: a.name.slice(0, 200), size: a.size, sync: parseSync(a.sync) }
+    const beats = parseTimes(a.beats)
+    const downbeats = parseTimes(a.downbeats)
+    if (beats && downbeats) Object.assign(out.audio, { beats, downbeats })
+  }
+  if (o.source === 'synth' || o.source === 'video' || o.source === 'audio') out.source = o.source
   if (isNum(o.videoVolume)) out.videoVolume = Math.min(1, Math.max(0, o.videoVolume))
+  if (isNum(o.audioVolume)) out.audioVolume = Math.min(1, Math.max(0, o.audioVolume))
   if (typeof o.mix === 'object' && o.mix !== null) {
     const mix: Record<number, TrackMix> = {}
     for (const [k, m] of Object.entries(o.mix as Record<string, unknown>)) {
@@ -126,6 +157,23 @@ function saveAll(all: Record<string, SongExtras>): void {
   }
 }
 
+/**
+ * Read-modify-write one song's entry against the freshest stored copy (also
+ * for work that outlives the screen it started on, like the beat finder).
+ */
+export function patchSongExtras(songId: string, fn: (current: SongExtras) => SongExtras): Record<string, SongExtras> {
+  const next = loadAll()
+  if (!songId) return next
+  next[songId] = fn(next[songId] ?? {})
+  saveAll(next)
+  try {
+    window.dispatchEvent(new Event(EXTRAS_EVENT))
+  } catch {
+    /* no window/Event — the caller still gets the new state */
+  }
+  return next
+}
+
 export interface SongExtrasApi {
   extras: SongExtras
   setVideo(video: SongVideo | null): void
@@ -134,6 +182,9 @@ export interface SongExtrasApi {
   setTrackMix(trackIndex: number, mix: Partial<TrackMix>): void
   setMeta(title: string, artist: string): void
   setVideoVolume(volume: number): void
+  setAudio(audio: SongAudio | null): void
+  setAudioSync(sync: SyncPoint[]): void
+  setAudioVolume(volume: number): void
 }
 
 /** Extras for one song (empty object when none / no song). */
@@ -156,16 +207,7 @@ export function useSongExtras(songId: string): SongExtrasApi {
   /** Read-modify-write this song's entry against the freshest stored copy. */
   const update = useCallback(
     (fn: (current: SongExtras) => SongExtras) => {
-      if (!songId) return
-      const next = loadAll()
-      next[songId] = fn(next[songId] ?? {})
-      saveAll(next)
-      setAll(next)
-      try {
-        window.dispatchEvent(new Event(EXTRAS_EVENT))
-      } catch {
-        /* no window/Event — state already updated */
-      }
+      if (songId) setAll(patchSongExtras(songId, fn))
     },
     [songId],
   )
@@ -175,9 +217,28 @@ export function useSongExtras(songId: string): SongExtrasApi {
       update((cur) => {
         const next: SongExtras = { ...cur }
         delete next.video
-        delete next.source
+        if (next.source === 'video') delete next.source
         return video ? { ...next, video, source: 'video' } : next
       }),
+    [update],
+  )
+  const setAudio = useCallback(
+    (audio: SongAudio | null) =>
+      update((cur) => {
+        const next: SongExtras = { ...cur }
+        delete next.audio
+        if (next.source === 'audio') delete next.source
+        return audio ? { ...next, audio, source: 'audio' } : next
+      }),
+    [update],
+  )
+  const setAudioSync = useCallback(
+    (sync: SyncPoint[]) =>
+      update((cur) => (cur.audio ? { ...cur, audio: { ...cur.audio, sync: parseSync(sync) } } : cur)),
+    [update],
+  )
+  const setAudioVolume = useCallback(
+    (volume: number) => update((cur) => ({ ...cur, audioVolume: Math.min(1, Math.max(0, volume)) })),
     [update],
   )
   const setSync = useCallback(
@@ -216,6 +277,9 @@ export function useSongExtras(songId: string): SongExtrasApi {
     setTrackMix,
     setMeta,
     setVideoVolume,
+    setAudio,
+    setAudioSync,
+    setAudioVolume,
   }
 }
 
